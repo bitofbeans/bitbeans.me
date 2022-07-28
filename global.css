@@ -15,6 +15,13 @@ body {
     flex-direction: column;
 }
 
+nav {
+    position: absolute;
+    padding: 10px 10px 5px 10px;
+    background: rgba(14, 21, 36, 0.466);
+    width: calc(100% - 20px);
+}
+
 h1 {
     color: #e392fa;
     margin-top: 0px;
@@ -31,7 +38,7 @@ a {
 main {
     max-width: 450px;
     margin: auto;
-    padding: 1.5rem;
+    padding: min(1.5rem, 3%);
 }
 
 .link-container {
@@ -46,4 +53,10 @@ main {
 
 .back {
     text-decoration: none;
+}
+
+.logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 100%;
 }
