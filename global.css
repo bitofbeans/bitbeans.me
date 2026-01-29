@@ -126,3 +126,7 @@ kbd {
 .tooltip:hover .tooltiptext {
     visibility: visible;
 }
+.game {
+    padding: 1.5rem;
+    border-radius: 2rem;
+}
