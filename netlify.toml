@@ -6,7 +6,6 @@
   publish = "dist"
 
 [[redirects]]
-  # Rewrites all URLs to index.html for Single Page Application client-side routing
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  from = "/tpcl"
+  to = "/tpcl/"
+  status = 301

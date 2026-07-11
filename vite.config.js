@@ -7,7 +7,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        //tpcl: resolve(__dirname, 'TPCL/index.html'),
+        tpcl: resolve(__dirname, 'TPCL/index.html'),
       },
     },
   },
