@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import Sitemap from 'vite-plugin-sitemap'
 
 export default defineConfig({
   build: {
@@ -10,4 +11,9 @@ export default defineConfig({
       },
     },
   },
+    plugins: [
+    Sitemap({ 
+      hostname: 'https://bitbeans.me', // Replace with your actual domain
+    }),
+  ],
 });
