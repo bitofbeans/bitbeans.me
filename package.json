@@ -1,0 +1,40 @@
+{
+  "devDependencies": {
+    "vite": "^8.1.4"
+  },
+  "name": "bitbeans.me",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "detect-libc": "^2.1.2",
+    "fdir": "^6.5.0",
+    "lightningcss": "^1.32.0",
+    "lightningcss-darwin-arm64": "^1.32.0",
+    "nanoid": "^3.3.15",
+    "picocolors": "^1.1.1",
+    "picomatch": "^4.0.5",
+    "postcss": "^8.5.16",
+    "rolldown": "^1.1.5",
+    "source-map-js": "^1.2.1",
+    "tinyglobby": "^0.2.17"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitofbeans/bitbeans.me.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bitofbeans/bitbeans.me/issues"
+  },
+  "homepage": "https://github.com/bitofbeans/bitbeans.me#readme",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+
+}
