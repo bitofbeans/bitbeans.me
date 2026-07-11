@@ -15,12 +15,20 @@ body {
     flex-direction: column;
 }
 
+nav a {
+    padding-right: 1rem;
+    display: flex;
+    align-items: center;
+}
 nav {
     position: absolute;
-    padding: 10px 10px 5px 10px;
+    padding: 10px;
     background: rgba(0, 0, 0, 0.466);
     width: calc(100% - 20px);
+    display: flex;
+    align-items: center;
 }
+
 
 h1 {
     color: #e392fa;
