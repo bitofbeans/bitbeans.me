@@ -1,2 +1,12 @@
 [build]
+  # The command Netlify runs to build your Vite project
+  command = "npm run build"
+  
+  # The directory Vite outputs your production-ready files into
   publish = "dist"
+
+[[redirects]]
+  # Rewrites all URLs to index.html for Single Page Application client-side routing
+  from = "/*"
+  to = "/index.html"
+  status = 200
