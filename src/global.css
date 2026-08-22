@@ -138,3 +138,7 @@ kbd {
     padding: 1.5rem;
     border-radius: 2rem;
 }
+
+.large-text {
+    font-size: xx-large;
+}
