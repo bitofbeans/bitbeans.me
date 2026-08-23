@@ -1,3 +1,8 @@
+<script>
+    let images = import.meta.glob('/public/images/*.png', {import: 'default', eager: true}) 
+
+    const imageUrls = Object.values(images)
+</script>
 <h1>My Work</h1>
 
 <h2>Teleport</h2>
@@ -14,9 +19,16 @@ Or, play on itch.io below (less likely to be up to date)
 <iframe title="soundcloud embed" width="501px" height="166" scrolling="no" frameborder="no" allow="autoplay; encrypted-media" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/soundcloud%253Atracks%253A2358514967&color=%23ad6dca&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true"></iframe><div style="font-size: 10px; color: #131a2b;line-break: anywhere;word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,Tahoma,sans-serif;font-weight: 100;"><a href="https://soundcloud.com/user-95597774" title="bitbeans" target="_blank" style="color: #131a2b; text-decoration: none;">bitbeans</a> · <a href="https://soundcloud.com/user-95597774/primaconca" title="primaconca" target="_blank" style="color: #131a2b; text-decoration: none;">primaconca</a></div>
 
 <h2>Graphic Design Work</h2>
-Here's some designs I've made in Adobe Illustrator.
-<br>
-to-do, make carousel Here
+Here's some designs I've made in Adobe Illustrator. Click on one to view it. (oops I haven't added that yet)
+<br> <br>
+
+<div class="gallery">
+    {#each imageUrls as src }
+        <div class='gallery-item'>
+            <img onclick={expandImage(src)} {src}  alt="gallery item" />
+        </div>
+    {/each}
+</div>
 
 <h2>Older Work</h2>
 <h3>2048 </h3>

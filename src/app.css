@@ -73,6 +73,20 @@ a {
 
 }
 
+.gallery {
+    display: flex;
+    gap: 3rem 0;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.gallery-item {
+    width: 30%;
+}
+.gallery-item > img {
+    width: min(200px, 90%);
+    height: auto;
+}
+
 /*
     NetworkLogo 
 */
