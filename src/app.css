@@ -1,0 +1,106 @@
+/* 
+    General Styles
+*/
+@import url("https://fonts.googleapis.com/css2?family=Cal+Sans&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap");
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    color: white;
+    scrollbar-color: var(--green) var(--border);
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+}
+
+body {
+    background-color: black;
+    font-family: "Cal Sans", sans-serif;
+    letter-spacing: 1px;
+    display: flex;
+    flex-direction: column;
+    --border: #030f08;
+    --border-lighter: #0e1d31;
+    --green: #14ff9a;
+    --light-green: #b5fcdd;
+    --lightest-green: #e2fff3;
+    --blue: #40a6ff;
+}
+
+/* Holds both components */
+main {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    gap: 2rem;
+}
+
+#app {
+    height: 100%;
+}
+
+h1 {
+    color: var(--green);
+}
+
+h2 {
+    color: var(--light-green);
+}
+
+h3 {
+    color: var(--lightest-green);
+}
+
+a {
+    color: var(--blue);
+}
+/* 
+    ContentPanel 
+*/
+
+.content-container {
+    margin: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--border);
+    width: 32rem;
+    height: min(30rem, 60%);
+    overflow-y: auto;
+}
+
+/*
+    NetworkLogo 
+*/
+
+svg.logo {
+    width: 20rem;
+    height: min(20rem, 80%);
+}
+
+button {
+    color: white;
+    border: none;
+    background-color: transparent;
+    font-family: "JetBrains Mono", sans-serif;
+}
+
+div.tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 4.8rem;
+    height: min(20rem, 80%);
+    /* flex: 1 0 0; */
+}
+
+.tabs > button {
+    padding: 1.2rem;
+    color: #2abc7d;
+    text-decoration: underline;
+    cursor: pointer;
+}
