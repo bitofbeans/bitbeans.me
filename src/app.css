@@ -10,7 +10,7 @@ body {
     height: 100%;
     width: 100%;
     color: white;
-    scrollbar-color: var(--green) var(--border);
+    scrollbar-color: var(--green) transparent;
     scrollbar-width: thin;
     scrollbar-gutter: stable;
 }
@@ -35,14 +35,9 @@ main {
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
-    height: 100%;
-    margin-top: 2rem;
-    margin-bottom: 2rem;
+    min-height: 100dvh;
     gap: 2rem;
-}
-
-#app {
-    height: 100%;
+    padding: 0 2rem;
 }
 
 h1 {
@@ -63,24 +58,34 @@ a {
 /* 
     ContentPanel 
 */
-
+/* The CONTENT only */
 .content-container {
-    margin: 1rem;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    background-color: var(--border);
-    width: 32rem;
-    height: min(30rem, 60%);
-    overflow-y: auto;
+    flex: 1 1 32rem;
+    border-radius: 1rem;
+    height: min(36rem, 80vh);
+    padding: 1.5rem;
+    overflow: auto;
+    margin: 0;
+    border: 0.56rem solid white;
+    border-radius: 3rem;
+    /* outline: 9px solid white;
+    outline-offset: 17px; */
+
 }
 
 /*
     NetworkLogo 
 */
 
+.network {
+    display: flex;
+    align-items: stretch;
+    width: clamp(16rem, 30vw, 30rem)
+}
+
 svg.logo {
-    width: 20rem;
-    height: min(20rem, 80%);
+    height: auto;
+    margin: 2rem 0;
 }
 
 button {
@@ -90,12 +95,14 @@ button {
     font-family: "JetBrains Mono", sans-serif;
 }
 
+/* The buttons; container and children */
 div.tabs {
     display: flex;
     flex-direction: column;
-    gap: 4.8rem;
-    height: min(20rem, 80%);
-    /* flex: 1 0 0; */
+    justify-content: space-between;
+    padding: 1.5rem 0;
+    gap: 1.5rem;
+    height: auto;
 }
 
 .tabs > button {
