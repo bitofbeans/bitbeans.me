@@ -9,7 +9,9 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { SegmentLabels } from "./segment-labels";
 
 const artboardSize = 1000;
 const logoScale = 0.962535;
@@ -96,6 +98,7 @@ function LogoStrokes({
 }
 
 export function AnimatedLogo() {
+  const [showLabels, setShowLabels] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const upperLeft = useMotionValue(initialExtension);
   const upperRight = useMotionValue(initialExtension);
@@ -137,6 +140,7 @@ export function AnimatedLogo() {
       const unitsPerPixel = artboardSize / (width * logoScale);
       const exitSlope = (1 - travelEase[3]) / (1 - travelEase[2]);
       let delayMs = 100;
+      let remaining = branches.length;
       branches.forEach(({ extension, axis }, index) => {
         const viewportSize =
           axis === "horizontal" ? window.innerWidth : window.innerHeight;
@@ -157,6 +161,9 @@ export function AnimatedLogo() {
               velocity,
               restSpeed: 3,
               restDelta: 0.35,
+              onComplete() {
+                if (--remaining === 0) setShowLabels(true);
+              },
             });
           },
         });
@@ -188,7 +195,7 @@ export function AnimatedLogo() {
     <svg
       ref={svgRef}
       role="img"
-      aria-label="BitBeans logo"
+      aria-label="BitBeans logo with Work, About, and Game"
       viewBox="0 0 1000 1000"
       className="h-auto w-[min(85vw,80dvh,36rem)] overflow-visible"
       strokeLinecap="round"
@@ -197,6 +204,13 @@ export function AnimatedLogo() {
       <g transform="translate(98.962642 23.705111) scale(0.962535)">
         <LogoStrokes tips={tips} />
         <LogoStrokes tips={tips} inner />
+        {(showLabels || reduceMotion) && (
+          <SegmentLabels
+            x={leftX + 9}
+            baselines={[upperLeftY - 58, centerY - 58, lowerLeftY - 58]}
+            reduceMotion={Boolean(reduceMotion)}
+          />
+        )}
       </g>
     </svg>
   );
