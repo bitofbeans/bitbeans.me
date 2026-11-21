@@ -23,7 +23,9 @@ body {
   cursor: pointer;
 }
 .section-link:hover,
-.section-link:focus-visible {
+.section-link:focus-visible,
+.return-switch:hover svg,
+.return-switch:focus-visible svg {
   filter: brightness(1.35);
 }
 .section-link:focus-visible {
@@ -135,6 +137,11 @@ body {
   grid-template-columns: 1.4fr 1fr;
   align-items: center;
   gap: clamp(16px, 3vw, 48px);
+}
+article + .project-feature {
+  margin-top: 1.5em;
+  padding-top: 1em;
+  border-top: 1px solid #21372c;
 }
 .project-feature img,
 .design-grid img {

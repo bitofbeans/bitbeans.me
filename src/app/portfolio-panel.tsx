@@ -19,6 +19,39 @@ const art = [
   ["SLGiveaway.png", "Giveaway icon"],
 ] as const;
 
+const projects = [
+  {
+    name: "MarMap",
+    description: "Explore the terrain of Mars and find the best route for a rover.",
+    href: "https://marmap.quobits.workers.dev/",
+    action: "Explore MarMap",
+    image: "/images/marmap.png",
+    alt: "Team Elders’ MarMap logo above the surface of Mars",
+    width: 1724,
+    height: 1138,
+  },
+  {
+    name: "vlonely&friends",
+    description: "A portfolio I built for an artist promoter.",
+    href: "https://vlfriends.com/",
+    action: "Visit vlonely&friends",
+    image: "/images/vlonely-and-friends.png",
+    alt: "vlonely and friends logo with smiling hearts and stars",
+    width: 2000,
+    height: 1336,
+  },
+  {
+    name: "Teleport",
+    description: "Play the finished game on Scratch.",
+    href: "https://scratch.mit.edu/projects/1299864236/",
+    action: "Play Teleport",
+    image: "/images/5TPThumb.png",
+    alt: "Teleport artwork with two green characters bursting through the screen",
+    width: 640,
+    height: 480,
+  },
+];
+
 function Work() {
   const [gallery, setGallery] = useState(false);
   return (
@@ -55,30 +88,26 @@ function Work() {
         </div>
       ) : (
         <>
-          <article className="project-feature">
-            <a
-              href="https://scratch.mit.edu/projects/1299864236/"
-              aria-label="Play Teleport on Scratch"
-            >
-              <Image
-                src="/images/5TPThumb.png"
-                width={640}
-                height={480}
-                sizes="(max-width: 650px) 80vw, 45vw"
-                alt="Teleport artwork with two green characters bursting through the screen"
-              />
-            </a>
-            <div>
-              <h2>Teleport</h2>
-              <p>Play the finished game on Scratch.</p>
-              <a
-                className="pixel-action"
-                href="https://scratch.mit.edu/projects/1299864236/"
-              >
-                Play Teleport ↗
+          {projects.map((project) => (
+            <article className="project-feature" key={project.href}>
+              <a href={project.href} aria-label={project.action}>
+                <Image
+                  src={project.image}
+                  width={project.width}
+                  height={project.height}
+                  sizes="(max-width: 650px) 80vw, 45vw"
+                  alt={project.alt}
+                />
               </a>
-            </div>
-          </article>
+              <div>
+                <h2>{project.name}</h2>
+                <p>{project.description}</p>
+                <a className="pixel-action" href={project.href}>
+                  {project.action} ↗
+                </a>
+              </div>
+            </article>
+          ))}
           <article className="mix-row">
             <h2>DJ Mix</h2>
             <a href="https://soundcloud.com/user-95597774/primaconca">
@@ -332,7 +361,6 @@ function Frame({ g }: { g: SceneGeometry }) {
       />
       <g className="frame-power">
         <path d={outline} stroke="currentColor" strokeWidth={wire} />
-        <path d={outline} stroke="black" strokeWidth={wire / 2} />
         {[
           [left, top],
           [right, top],
@@ -349,6 +377,7 @@ function Frame({ g }: { g: SceneGeometry }) {
             strokeWidth={wire * 0.25}
           />
         ))}
+        <path d={outline} stroke="black" strokeWidth={wire / 2} />
       </g>
     </svg>
   );

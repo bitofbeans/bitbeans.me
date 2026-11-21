@@ -34,7 +34,6 @@ export function StaticTrace({
           strokeWidth={m.strokeWidth}
         />
       )}
-      <path d={d} stroke="black" strokeWidth={m.innerStrokeWidth} />
       {tip && (
         <g>
           <circle
@@ -46,6 +45,7 @@ export function StaticTrace({
           <circle cx={tip[0]} cy={tip[1]} r={m.nodeInnerRadius} fill="black" />
         </g>
       )}
+      <path d={d} stroke="black" strokeWidth={m.innerStrokeWidth} />
     </g>
   );
 }

@@ -12,6 +12,10 @@ import {
   AnimatedLogo,
   restingWhiteTip,
   logoBranchStrokeWidth,
+  logoSnapSpring,
+  springHandoff,
+  travelDuration,
+  travelEase,
 } from "./animated-logo";
 import { CircuitBackdrop, traceMetrics } from "./circuit-backdrop";
 import { PortfolioPanel } from "./portfolio-panel";
@@ -55,6 +59,7 @@ export function PortfolioScene() {
   const [section, setSection] = useState<Section | null>(null);
   const [docked, setDocked] = useState(false);
   const progress = useMotionValue(0);
+  const camera = useMotionValue(0);
   const reduce = useReducedMotion();
   const lastLink = useRef<HTMLOrSVGElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -64,7 +69,7 @@ export function PortfolioScene() {
     const measure = () => {
       const w = el.clientWidth,
         h = el.clientHeight;
-      const logo = el.querySelector<SVGSVGElement>(".home-logo");
+      const logo = el.querySelector<HTMLDivElement>(".home-logo");
       const logoWidth = logo?.getBoundingClientRect().width;
       if (w && h && logoWidth) setGeometry(sceneGeometry(w, h, logoWidth));
     };
@@ -97,18 +102,51 @@ export function PortfolioScene() {
         setSection(null);
       }
     };
-    if (reduce || progress.get() === end) {
+    if (reduce || (progress.get() === end && camera.get() === end)) {
       progress.jump(end);
+      camera.jump(end);
       finish();
       return;
     }
-    const controls = animate(progress, end, {
-      duration: (target ? 1.5 : 1.1) * Math.abs(end - progress.get()),
-      ease: [0.42, 0, 0.25, 1],
-      onComplete: finish,
+    const distance = end - progress.get();
+    let cameraDone = camera.get() === end;
+    let nodeDone = distance === 0;
+    if (!cameraDone) {
+      animate(camera, end, {
+        type: "tween",
+        duration: 1.15 * Math.abs(end - camera.get()),
+        ease: [0.42, 0, 0.42, 1],
+        onComplete() {
+          cameraDone = true;
+          if (nodeDone) finish();
+        },
+      });
+    }
+    if (nodeDone) return () => camera.stop();
+    const duration = travelDuration * Math.abs(distance);
+    const exitSlope = (1 - travelEase[3]) / (1 - travelEase[2]);
+    animate(progress, end - distance * springHandoff, {
+      type: "tween",
+      duration,
+      ease: travelEase,
+      onComplete() {
+        animate(progress, end, {
+          ...logoSnapSpring,
+          velocity: distance * (1 - springHandoff) * exitSlope / duration,
+          restDelta: 0.0001,
+          restSpeed: 0.001,
+          onComplete() {
+            nodeDone = true;
+            if (cameraDone) finish();
+          },
+        });
+      },
     });
-    return () => controls.stop();
-  }, [target, measured, progress, reduce]); // Resizing a docked panel does not replay the flight.
+    return () => {
+      camera.stop();
+      progress.stop();
+    };
+  }, [target, measured, progress, camera, reduce]); // Resizing a docked panel does not replay the flight.
 
   useEffect(() => {
     if (docked) heading.current?.focus({ preventScroll: true });
@@ -127,16 +165,6 @@ export function PortfolioScene() {
       setTarget(null);
     }
   }
-  // Quadratic shoulders meet the constant-speed middle at the same velocity.
-  // This lets the tip lead on departure and the camera coast through docking.
-  const camera = useTransform(progress, (p) => {
-    const start = 0.18,
-      tail = 0.34;
-    const speed = 1 / (1 - (start + tail) / 2);
-    if (p < start) return (speed * p * p) / (2 * start);
-    if (p > 1 - tail) return 1 - (speed * (1 - p) ** 2) / (2 * tail);
-    return speed * (p - start / 2);
-  });
   const cameraX = useTransform(camera, (v) => -v * (geometry?.distance ?? 0));
   const cameraY = useTransform(camera, (v) => -v * (geometry?.cameraY ?? 0));
 

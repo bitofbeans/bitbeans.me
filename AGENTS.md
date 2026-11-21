@@ -1,20 +1,21 @@
-# Project preferences
+# Workflow
 
-## Workflow
+- Never run `npm run build` locally. It disrupts the running dev server. Review the diff and verify the requested change. Skip routine tests and test creation.
+- Ask a focused question when the answer would materially change the result. Respect explicit attempt limits and stop requests.
 
-- Never run `npm run build` locally. It disrupts the running dev server.
-- Skip routine test creation and test runs. Review the code you changed and keep verification focused on the request.
-- Ask a focused question when the answer would materially change the result. Honor explicit limits on attempts and stop when asked.
+## Homepage and navigation
 
-## Homepage
+- Keep the logo centered on black and the viewport fixed on desktop and mobile. Only content inside a docked panel scrolls.
+- Animate the six logo branches with Framer Motion along horizontal, vertical, or 45° axes. Retract clockwise from the upper left, increasing the stagger from 60 to 100 ms, with a quick recoil and subtle overshoot.
+- The camera follows the rightmost white node to the green frame. Preserve wire widths throughout the flight, feed all four corners with blue traces, and keep cut ends offscreen.
+- Work, About, Game, and Back share the segmented startup flash. Back flashes on docking. With reduced motion, show settled states immediately.
 
-- Keep the logo centered on black. Use Framer Motion and align the six logo branches to horizontal, vertical, or 45° axes.
-- On load, retract the branches from offscreen in clockwise order starting at the upper left. Keep the stagger tight and increase it from 60 to 100 ms, with a quick recoil and a subtle overshoot before settling.
+## Background traces
 
-### Background traces
+- Route all four edges with varied right-angle bends, spaced parallel runs, and small gaps at crossings. Vary how far nodes reach inward and keep each full node clear of the logo, with extra clearance on mobile.
+- Start offscreen about one-third across the top and sweep clockwise by each trace’s actual entry point. Each full-size node leads its line around every bend and glides to a stop.
+- In `src/app/circuit-backdrop.tsx`, tune `firstEntryDelay`, `entryStagger`, and `drawDuration` independently. Adjust `blueOutlineScale` to change blue thickness while preserving the black centers.
 
-- Spread traces evenly around all four edges. Use sharp 90° bends, leave space between parallel runs, and give intentional crossings a small gap so longer sideways runs read as overpasses.
-- Vary how far neighboring traces reach toward the logo. Let some nodes approach the clearance boundary while others stop farther out, giving the opening an uneven outline. Keep the full node clear of the logo throughout its travel.
-- Use slim blue outlines around black centers and uniformly sized circular nodes. When tuning the blue thickness, adjust `blueOutlineScale` in `src/app/circuit-backdrop.tsx` to preserve the black center width.
-- Start the sweep about one-third of the way across the top edge and continue clockwise. Stagger each trace by its actual entry position, including where routes swap lanes. Tune `firstEntryDelay`, `entryStagger`, and `drawDuration` independently in `src/app/circuit-backdrop.tsx`.
-- Each node leads its trace at full size from offscreen, follows every bend, and glides to a smooth stop. Keep the borders clear before entry. With reduced motion enabled, show the completed logo and traces immediately.
+## Portfolio content
+
+- Edit projects and designs in `src/app/portfolio-panel.tsx`. Project order follows the `projects` array. Store artwork in `public/images/` and include its intrinsic dimensions and descriptive alt text for project previews.

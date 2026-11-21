@@ -31,9 +31,9 @@ const lowerStemY = centerY + 194;
 const bendX = 350;
 const diagonalRun = spineX - bendX;
 
-const travelDuration = 0.76;
-const springHandoff = 0.075;
-const travelEase = [0.52, 0, 0.26, 0.82] as const;
+export const travelDuration = 0.76;
+export const springHandoff = 0.075;
+export const travelEase = [0.52, 0, 0.26, 0.82] as const;
 
 export const logoSnapSpring = {
   type: "spring",
@@ -121,7 +121,7 @@ export function AnimatedLogo({
   onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
 }) {
   const [showLabels, setShowLabels] = useState(false);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
   const upperLeft = useMotionValue(initialExtension);
   const upperRight = useMotionValue(initialExtension);
   const farRight = useMotionValue(initialExtension);
@@ -131,24 +131,23 @@ export function AnimatedLogo({
   const reduceMotion = useReducedMotion();
 
   // Extend the actual crossbar around the return loop, keeping its white tip on the path.
-  const straight = useTransform(
+  const scale = geometry?.scale ?? 1;
+  const straightLength = (geometry?.straight ?? 0) / scale;
+  const dropLength = (geometry?.loopHeight ?? 0) / scale;
+  const foldLength = (geometry?.loopWidth ?? 0) / scale;
+  const traveled = useTransform(
     progress,
-    [0, 0.78, 1],
-    [
-      0,
-      (geometry?.straight ?? 0) / (geometry?.scale ?? 1),
-      (geometry?.straight ?? 0) / (geometry?.scale ?? 1),
-    ],
+    (value) => value * (straightLength + dropLength + foldLength),
   );
-  const drop = useTransform(
-    progress,
-    [0.78, 0.88],
-    [0, (geometry?.loopHeight ?? 0) / (geometry?.scale ?? 1)],
+  const straight = useTransform(traveled, (value) =>
+    Math.min(value, straightLength),
+  );
+  const drop = useTransform(traveled, (value) =>
+    Math.min(Math.max(0, value - straightLength), dropLength),
   );
   const fold = useTransform(
-    progress,
-    [0.88, 1],
-    [0, -(geometry?.loopWidth ?? 0) / (geometry?.scale ?? 1)],
+    traveled,
+    (value) => -Math.max(0, value - straightLength - dropLength),
   );
   const elbow = useTransform(() => rightX + farRight.get() + straight.get());
   const tipX = useTransform(() => elbow.get() + fold.get());
@@ -186,7 +185,7 @@ export function AnimatedLogo({
     }
 
     function retractBranches() {
-      const width = svgRef.current?.getBoundingClientRect().width;
+      const width = logoRef.current?.getBoundingClientRect().width;
       if (!width) return;
 
       const unitsPerPixel = artboardSize / (width * logoScale);
@@ -243,30 +242,39 @@ export function AnimatedLogo({
     reduceMotion,
   ]);
 
+  const flightWidth = geometry
+    ? artboardSize + Math.ceil((geometry.straight * logoScale) / geometry.scale)
+    : artboardSize;
+
   return (
-    <svg
-      ref={svgRef}
-      role="navigation"
-      aria-label="BitBeans logo with Work, About, and Game"
-      viewBox="0 0 1000 1000"
-      className="home-logo h-auto w-[min(85vw,80dvh,36rem)] overflow-visible"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <div
+      ref={logoRef}
+      className="home-logo relative aspect-square w-[min(85vw,80dvh,36rem)]"
     >
-      <g
-        transform={`translate(${logoOffset.x} ${logoOffset.y}) scale(${logoScale})`}
+      <svg
+        role="navigation"
+        aria-label="BitBeans logo with Work, About, and Game"
+        viewBox={`0 0 ${flightWidth} ${artboardSize}`}
+        className="absolute top-0 left-0 h-full max-w-none overflow-visible"
+        style={{ width: `${(100 * flightWidth) / artboardSize}%` }}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       >
-        <LogoStrokes tips={tips} />
-        <LogoStrokes tips={tips} inner />
-        {showLabels && (
-          <SegmentLabels
-            onNavigate={onNavigate}
-            x={leftX + 9}
-            baselines={[upperLeftY - 58, centerY - 58, lowerLeftY - 58]}
-            reduceMotion={Boolean(reduceMotion)}
-          />
-        )}
-      </g>
-    </svg>
+        <g
+          transform={`translate(${logoOffset.x} ${logoOffset.y}) scale(${logoScale})`}
+        >
+          <LogoStrokes tips={tips} />
+          <LogoStrokes tips={tips} inner />
+          {showLabels && (
+            <SegmentLabels
+              onNavigate={onNavigate}
+              x={leftX + 9}
+              baselines={[upperLeftY - 58, centerY - 58, lowerLeftY - 58]}
+              reduceMotion={Boolean(reduceMotion)}
+            />
+          )}
+        </g>
+      </svg>
+    </div>
   );
 }
