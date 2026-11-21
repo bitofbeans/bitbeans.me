@@ -1,6 +1,15 @@
 # bitbeans.me
-My personal website, hosted on Netlify. 
 
-I use Vite to build; commands are `npm run dev` and `npm run build`.
+This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
 
-Note: Netlify auto-builds the website themselves, no need to use build command to publish new changes.
+## T3 Stack ???
+
+Yes, this is the stack. Personal website, so I won't need half of these
+- [Next.js](https://nextjs.org)
+- [NextAuth.js](https://next-auth.js.org)
+- [Prisma](https://prisma.io)
+- [Drizzle](https://orm.drizzle.team)
+- [Tailwind CSS](https://tailwindcss.com)
+- [tRPC](https://trpc.io)
+
+[And the T3 docs here.](https://create.t3.gg/)
