@@ -11,10 +11,12 @@ import {
 } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
-import { SegmentLabels } from "./segment-labels";
+import type { SceneGeometry } from "./portfolio-scene";
+import { sections, SegmentLabels, type Section } from "./segment-labels";
 
 const artboardSize = 1000;
 const logoScale = 0.962535;
+const logoOffset = { x: 98.962642, y: 23.705111 };
 const greenStrokeWidth = 64;
 const initialExtension = 12_000;
 const centerY = 476;
@@ -44,10 +46,22 @@ export function logoBranchStrokeWidth(svgWidth: number) {
   return (greenStrokeWidth * logoScale * svgWidth) / artboardSize;
 }
 
+export function restingWhiteTip(logoWidth: number) {
+  const unit = logoWidth / artboardSize;
+  const scale = unit * logoScale;
+  return {
+    scale,
+    x: unit * logoOffset.x + rightX * scale,
+    y: unit * logoOffset.y + centerY * scale,
+  };
+}
+
 type BranchTips = {
   upperLeftX: MotionValue<number>;
   upperRightY: MotionValue<number>;
   farRightX: MotionValue<number>;
+  farRightY: MotionValue<number>;
+  crossbar: MotionValue<string>;
   lowerRightY: MotionValue<number>;
   lowerLeftX: MotionValue<number>;
   middleLeftX: MotionValue<number>;
@@ -66,7 +80,6 @@ function LogoStrokes({
 
   const outline = useMotionTemplate`M${tips.upperLeftX},${upperLeftY} H${bendX} L${spineX},${upperLeftY + diagonalRun} V${lowerLeftY - diagonalRun} L${bendX},${lowerLeftY} H${tips.lowerLeftX}`;
   const middle = useMotionTemplate`M${spineX},${centerY} H${tips.middleLeftX}`;
-  const crossbar = useMotionTemplate`M${spineX},${centerY} H${tips.farRightX}`;
   const stem = useMotionTemplate`M${stemX},${tips.upperRightY} V${tips.lowerRightY}`;
 
   return (
@@ -83,21 +96,30 @@ function LogoStrokes({
         <g fill={inner ? "none" : green} strokeWidth={nodeWidth}>
           <motion.circle cx={stemX} cy={tips.upperRightY} r={19} />
           <motion.circle cx={stemX} cy={tips.lowerRightY} r={19} />
-          <motion.circle cx={tips.farRightX} cy={centerY} r={19} />
+          <motion.circle cx={tips.farRightX} cy={tips.farRightY} r={19} />
           <circle cx={stemX} cy={centerY} r={19} />
         </g>
         <motion.path
-          d={crossbar}
-          strokeWidth={inner ? 40 : 80}
+          d={tips.crossbar}
+          strokeLinejoin="round"
+          strokeWidth={nodeWidth}
           strokeLinecap={inner ? undefined : "butt"}
         />
-        <motion.path d={stem} strokeWidth={inner ? 28 : 56} />
+        <motion.path d={stem} strokeWidth={nodeWidth} />
       </g>
     </g>
   );
 }
 
-export function AnimatedLogo() {
+export function AnimatedLogo({
+  progress,
+  geometry,
+  onNavigate,
+}: {
+  progress: MotionValue<number>;
+  geometry: SceneGeometry | null;
+  onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
+}) {
   const [showLabels, setShowLabels] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const upperLeft = useMotionValue(initialExtension);
@@ -108,10 +130,36 @@ export function AnimatedLogo() {
   const middleLeft = useMotionValue(initialExtension);
   const reduceMotion = useReducedMotion();
 
+  // Extend the actual crossbar around the return loop, keeping its white tip on the path.
+  const straight = useTransform(
+    progress,
+    [0, 0.78, 1],
+    [
+      0,
+      (geometry?.straight ?? 0) / (geometry?.scale ?? 1),
+      (geometry?.straight ?? 0) / (geometry?.scale ?? 1),
+    ],
+  );
+  const drop = useTransform(
+    progress,
+    [0.78, 0.88],
+    [0, (geometry?.loopHeight ?? 0) / (geometry?.scale ?? 1)],
+  );
+  const fold = useTransform(
+    progress,
+    [0.88, 1],
+    [0, -(geometry?.loopWidth ?? 0) / (geometry?.scale ?? 1)],
+  );
+  const elbow = useTransform(() => rightX + farRight.get() + straight.get());
+  const tipX = useTransform(() => elbow.get() + fold.get());
+  const tipY = useTransform(() => centerY + drop.get());
+  const crossbar = useMotionTemplate`M${spineX},${centerY} H${elbow} V${tipY} H${tipX}`;
   const tips = {
     upperLeftX: useTransform(upperLeft, (distance) => leftX - distance),
     upperRightY: useTransform(upperRight, (distance) => upperStemY - distance),
-    farRightX: useTransform(farRight, (distance) => rightX + distance),
+    farRightX: tipX,
+    farRightY: tipY,
+    crossbar,
     lowerRightY: useTransform(lowerRight, (distance) => lowerStemY + distance),
     lowerLeftX: useTransform(lowerLeft, (distance) => leftX - distance),
     middleLeftX: useTransform(middleLeft, (distance) => leftX - distance),
@@ -128,7 +176,11 @@ export function AnimatedLogo() {
       { extension: middleLeft, axis: "horizontal" },
     ];
 
-    if (reduceMotion) {
+    if (
+      reduceMotion ||
+      sections.some((s) => location.hash === "#" + s.toLowerCase())
+    ) {
+      setShowLabels(true);
       branches.forEach(({ extension }) => extension.jump(0));
       return;
     }
@@ -194,18 +246,21 @@ export function AnimatedLogo() {
   return (
     <svg
       ref={svgRef}
-      role="img"
+      role="navigation"
       aria-label="BitBeans logo with Work, About, and Game"
       viewBox="0 0 1000 1000"
-      className="h-auto w-[min(85vw,80dvh,36rem)] overflow-visible"
+      className="home-logo h-auto w-[min(85vw,80dvh,36rem)] overflow-visible"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <g transform="translate(98.962642 23.705111) scale(0.962535)">
+      <g
+        transform={`translate(${logoOffset.x} ${logoOffset.y}) scale(${logoScale})`}
+      >
         <LogoStrokes tips={tips} />
         <LogoStrokes tips={tips} inner />
-        {(showLabels || reduceMotion) && (
+        {showLabels && (
           <SegmentLabels
+            onNavigate={onNavigate}
             x={leftX + 9}
             baselines={[upperLeftY - 58, centerY - 58, lowerLeftY - 58]}
             reduceMotion={Boolean(reduceMotion)}

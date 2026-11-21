@@ -1,12 +1,17 @@
 "use client";
 
+import { useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
+
+export const sections = ["Work", "About", "Game"] as const;
+export type Section = (typeof sections)[number];
 
 // The wide W and m have a center post. The k has two diagonal segments.
 const glyphs = {
   W: { width: 21, lit: "bcdefi" },
   o: { width: 12, lit: "cdeg" },
   r: { width: 10, lit: "eg" },
+  c: { width: 12, lit: "deg" },
   k: { width: 12, lit: "efjk" },
   A: { width: 12, lit: "abcefg" },
   b: { width: 12, lit: "cdefg" },
@@ -55,7 +60,7 @@ function makeLetter(letter: Letter) {
   }));
 }
 
-const words = (["Work", "About", "Game"] as const).map((word) => {
+function makeWord(word: string) {
   let x = 0;
   return Array.from(word, (char) => {
     const letter = char as Letter;
@@ -63,23 +68,20 @@ const words = (["Work", "About", "Game"] as const).map((word) => {
     x += glyphs[letter].width + 4;
     return cell;
   });
-});
+}
+const words = sections.map(makeWord);
+const back = makeWord("back");
+const backWords = [back];
 
-export function SegmentLabels({
-  x,
-  baselines,
-  reduceMotion,
-}: {
-  x: number;
-  baselines: readonly number[];
-  reduceMotion: boolean;
-}) {
+function useSegmentMasks(labelWords: typeof words, reduceMotion: boolean) {
   const [masks, setMasks] = useState<number[][] | null>([]);
   useEffect(() => {
     if (reduceMotion) return;
     const scramble = () =>
       setMasks(
-        words.map((word) => word.map(() => Math.floor(Math.random() * 1024))),
+        labelWords.map((word) =>
+          word.map(() => Math.floor(Math.random() * 1024)),
+        ),
       );
     scramble();
     const ticker = window.setInterval(scramble, 85);
@@ -91,29 +93,87 @@ export function SegmentLabels({
       window.clearInterval(ticker);
       window.clearTimeout(finish);
     };
-  }, [reduceMotion]);
+  }, [labelWords, reduceMotion]);
+
+  return reduceMotion ? null : masks;
+}
+
+function WordSegments({
+  word,
+  masks,
+  y = 0,
+}: {
+  word: ReturnType<typeof makeWord>;
+  masks: number[] | null;
+  y?: number;
+}) {
+  return word.map(({ x, segments }, col) => (
+    <g key={col} transform={`translate(${x} ${y})`}>
+      {segments.map(({ lit, ...path }, i) => {
+        const on = masks === null ? lit : Boolean((masks[col] ?? 0) & (1 << i));
+        return <path key={i} {...path} fill={on ? "#ffbc42" : "#201a11"} />;
+      })}
+    </g>
+  ));
+}
+
+export function BackLabel() {
+  const reduceMotion = useReducedMotion();
+  const masks = useSegmentMasks(backWords, Boolean(reduceMotion));
+  return (
+    <svg aria-hidden="true" viewBox="-2 -2 66 29" width="58" height="25">
+      <g transform="translate(2 0) skewX(-5)">
+        <WordSegments
+          word={back}
+          masks={masks === null ? null : (masks[0] ?? [])}
+        />
+      </g>
+    </svg>
+  );
+}
+
+export function SegmentLabels({
+  x,
+  baselines,
+  onNavigate,
+  reduceMotion,
+}: {
+  onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
+  x: number;
+  baselines: readonly number[];
+  reduceMotion: boolean;
+}) {
+  const masks = useSegmentMasks(words, reduceMotion);
 
   return (
-    <g aria-hidden="true">
+    <g>
       {words.map((word, row) => (
-        <g
+        <a
           key={row}
-          transform={`translate(${x} ${baselines[row]}) scale(2) skewX(-5)`}
+          className="section-link"
+          aria-label={sections[row]}
+          href={`#${sections[row]!.toLowerCase()}`}
+          onClick={(event) => {
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            )
+              return;
+            event.preventDefault();
+            onNavigate(sections[row]!, event.currentTarget);
+          }}
         >
-          {word.map(({ x, segments }, col) => (
-            <g key={col} transform={`translate(${x} -24)`}>
-              {segments.map(({ lit, ...path }, i) => {
-                const on =
-                  reduceMotion || masks === null
-                    ? lit
-                    : Boolean((masks[row]?.[col] ?? 0) & (1 << i));
-                return (
-                  <path key={i} {...path} fill={on ? "#ffbc42" : "#201a11"} />
-                );
-              })}
-            </g>
-          ))}
-        </g>
+          <g transform={`translate(${x} ${baselines[row]}) scale(2) skewX(-5)`}>
+            <rect x="-29" y="-29" width="120" height="85" fill="transparent" />
+            <WordSegments
+              word={word}
+              masks={masks === null ? null : (masks[row] ?? [])}
+              y={-24}
+            />
+          </g>
+        </a>
       ))}
     </g>
   );

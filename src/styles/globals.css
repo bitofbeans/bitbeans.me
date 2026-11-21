@@ -11,3 +11,206 @@ body {
     var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
+
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("/fonts/pixelify-sans.ttf") format("truetype");
+  font-display: swap;
+}
+
+.section-link {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.section-link:hover,
+.section-link:focus-visible {
+  filter: brightness(1.35);
+}
+.section-link:focus-visible {
+  outline: 2px dashed #ffbc42;
+}
+
+.destination {
+  position: absolute;
+  isolation: isolate;
+  font-family: "Pixelify Sans", monospace;
+  color: #f0f3ed;
+}
+.frame-art {
+  overflow: visible;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.frame-power {
+  color: #193d2e;
+  transition: color 240ms ease-out;
+}
+.corner-charge {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 220ms ease-in;
+}
+.powered .corner-charge {
+  stroke-dashoffset: 0;
+}
+.powered .frame-power {
+  transition-delay: 140ms;
+  color: #2bbc7d;
+}
+.return-switch,
+.panel-scroll {
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+.powered .return-switch,
+.powered .panel-scroll {
+  opacity: 1;
+}
+.return-switch {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 1;
+}
+.panel-scroll {
+  position: absolute;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #365242 black;
+  scrollbar-width: thin;
+}
+.panel-content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: clamp(12px, 2vw, 32px) clamp(12px, 3.5vw, 56px) 40px;
+  font-size: clamp(18px, 1.6vw, 22px);
+  line-height: 1.45;
+}
+.panel-content h1 {
+  font-size: clamp(42px, 5.5vw, 80px);
+  line-height: 1;
+  margin: 0 0 0.34em;
+  letter-spacing: -0.045em;
+}
+.panel-content h1:focus {
+  outline: none;
+}
+.panel-content h2 {
+  font-size: 1.5em;
+  line-height: 1.15;
+}
+.panel-content p {
+  margin: 0.55em 0 1em;
+}
+.destination a {
+  color: #ffbc42;
+  text-underline-offset: 0.18em;
+}
+.destination a:hover {
+  text-decoration: underline;
+}
+.destination :is(button, a):focus-visible {
+  outline: 2px dashed #ffbc42;
+  outline-offset: 3px;
+}
+.work-switch {
+  display: flex;
+  gap: 1.1em;
+  margin-bottom: 1em;
+  border-bottom: 1px solid #21372c;
+}
+.work-switch button {
+  color: #a5b5ac;
+  padding: 0.2em 0 0.4em;
+  cursor: pointer;
+}
+.work-switch button[aria-pressed="true"] {
+  color: #ffbc42;
+  box-shadow: inset 0 -2px #ffbc42;
+}
+.project-feature {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  align-items: center;
+  gap: clamp(16px, 3vw, 48px);
+}
+.project-feature img,
+.design-grid img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.pixel-action {
+  display: inline-block;
+  padding: 0.4em 0.8em;
+  color: #ffbc42;
+  border: 1px solid #8e713b;
+  cursor: pointer;
+}
+.mix-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 1.5em;
+  padding-top: 1em;
+  border-top: 1px solid #21372c;
+}
+.design-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1em;
+}
+.design-grid img {
+  aspect-ratio: 4/3;
+  object-fit: contain;
+  background: #111614;
+}
+.design-grid figcaption {
+  margin-top: 0.3em;
+}
+.about-copy {
+  max-width: 44ch;
+}
+.about-copy h2 {
+  margin-top: 1.2em;
+}
+.signal-pads {
+  display: flex;
+  gap: clamp(14px, 3vw, 40px);
+  padding: 1em 0;
+}
+.signal-pads button {
+  width: clamp(46px, 11vw, 82px);
+  aspect-ratio: 1;
+  border: 4px solid #2bbc7d;
+  border-radius: 50%;
+  color: #2bbc7d;
+  font-size: 1.4em;
+}
+.signal-pads button:enabled {
+  cursor: pointer;
+}
+.signal-pads button.lit,
+.signal-pads button:active:enabled {
+  background: #ffbc42;
+  color: #10160e;
+  border-color: #ffbc42;
+}
+@media (max-width: 650px) {
+  .project-feature,
+  .design-grid {
+    grid-template-columns: 1fr;
+  }
+  .panel-content {
+    padding-inline: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .destination * {
+    transition: none;
+  }
+}

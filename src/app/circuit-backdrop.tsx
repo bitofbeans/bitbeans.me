@@ -11,6 +11,9 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { logoBranchStrokeWidth } from "./animated-logo";
 
+import type { SceneGeometry } from "./portfolio-scene";
+import { StaticTrace } from "./static-trace";
+
 type Size = { width: number; height: number; rem: number };
 type Point = { x: number; y: number };
 
@@ -78,8 +81,7 @@ const boardRoutes = {
   ],
 } as const;
 
-function traceLayout({ width, height, rem }: Size) {
-  const logoWidth = Math.min(width * 0.85, height * 0.8, 36 * rem);
+export function traceMetrics(width: number, height: number, logoWidth: number) {
   const laneSpacing = Math.min(desktopLaneSpacing, width / 9, height / 6);
   const compactness = 1 - laneSpacing / desktopLaneSpacing;
   const baseStrokeWidth =
@@ -91,6 +93,28 @@ function traceLayout({ width, height, rem }: Size) {
   const nodeOuterRadius =
     nodeInnerRadius + (baseStrokeWidth / 4) * blueOutlineScale;
   const nodeClearRadius = nodeOuterRadius + strokeWidth / 8;
+  return {
+    compactness,
+    strokeWidth,
+    innerStrokeWidth,
+    crossingGap,
+    nodeInnerRadius,
+    nodeOuterRadius,
+    nodeClearRadius,
+  };
+}
+
+function traceLayout({ width, height, rem }: Size) {
+  const logoWidth = Math.min(width * 0.85, height * 0.8, 36 * rem);
+  const {
+    compactness,
+    strokeWidth,
+    innerStrokeWidth,
+    crossingGap,
+    nodeInnerRadius,
+    nodeOuterRadius,
+    nodeClearRadius,
+  } = traceMetrics(width, height, logoWidth);
   const clearRadius = logoWidth * (0.45 - 0.05 * compactness);
   const verticalPadding =
     logoWidth * 0.44 * Math.max(0, 1 - width / (9 * desktopLaneSpacing));
@@ -177,6 +201,9 @@ function traceLayout({ width, height, rem }: Size) {
         {
           key: `${side}-${index}`,
           points,
+          border,
+          side,
+          index,
           path: points
             .map(({ x, y }, i) => `${i ? "L" : "M"}${x},${y}`)
             .join(" "),
@@ -339,7 +366,73 @@ function CircuitTrace({
   );
 }
 
-export function CircuitBackdrop() {
+// Continue from the same entry coordinates the animated homepage traces use.
+// The only edges the camera can uncover are the right and bottom of the home board.
+function FlightConnections({
+  g,
+  layout,
+}: {
+  g: SceneGeometry;
+  layout: Layout;
+}) {
+  const gap = g.distance - g.w;
+  const farBottom = g.h + Math.max(0, g.cameraY) + 2 * layout.strokeWidth;
+  const farTop = Math.min(0, g.cameraY) - 2 * layout.strokeWidth;
+  return (
+    <svg
+      aria-hidden="true"
+      width={g.w}
+      height={g.h}
+      className="absolute inset-0 overflow-visible"
+      fill="none"
+      strokeLinejoin="round"
+    >
+      {/* Interleaved overhead runs follow the approach up to the frame's leading corner. */}
+      {(
+        [
+          [0.21, 0.36, 0.42, 0.6],
+          [0.49, 0.28, 0.32, 0.47],
+          [0.64, 0.66, 0.83, 0.79],
+          [0.94, 0.44, 0.72, 0.53],
+          [1.08, 0.87, 0.91, 0.97],
+          [1.23, 0.59, 1.05, 0.73],
+        ] as const
+      ).map(([from, shelf, to, end]) => {
+        const span = gap + g.left;
+        const upper = g.cameraY + g.top;
+        const endX = g.w + to * span,
+          endY = end * upper;
+        const d = `M${g.w + from * span} ${farTop}V${upper * shelf}H${endX}V${endY}`;
+        return (
+          <StaticTrace key={from} d={d} metrics={layout} tip={[endX, endY]} />
+        );
+      })}
+      {layout.traces.map(({ side, index, border, key }) => {
+        if (side !== "bottom" && side !== "right") return null;
+        const { x, y } = border;
+        let path: string;
+        if (side === "right") {
+          // Offset the two banks of bends to keep the flying wire in clear view.
+          const lane = (index * 7) % 11;
+          const bend = x + gap * (0.085 + lane * 0.061);
+          const sign = y < g.h * 0.5 ? -1 : 1;
+          const turnY = y + sign * g.h * (0.07 + (index % 3) * 0.055);
+          path = `M${x - 1} ${y}H${bend}V${turnY}H${bend + gap * 0.11}V${sign < 0 ? farTop : farBottom}`;
+        } else {
+          const turnY =
+            y +
+            Math.max(g.h * 0.035, layout.strokeWidth * 2) * (1 + (index % 4));
+          const shift =
+            (index % 2 ? -1 : 1) * g.w * (0.025 + 0.016 * (index % 3));
+          path = `M${x} ${y - 1}V${turnY}H${x + shift}V${farBottom}`;
+        }
+        return <StaticTrace key={key} d={path} metrics={layout} />;
+      })}
+    </svg>
+  );
+}
+
+export function CircuitBackdrop({ flight }: { flight: SceneGeometry | null }) {
   const backdrop = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size | null>(null);
   const reduceMotion = useReducedMotion();
@@ -371,6 +464,7 @@ export function CircuitBackdrop() {
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 -z-10 text-[#1d3044]"
     >
+      {flight && layout && <FlightConnections g={flight} layout={layout} />}
       {size && layout && (
         <svg
           viewBox={`0 0 ${size.width} ${size.height}`}
