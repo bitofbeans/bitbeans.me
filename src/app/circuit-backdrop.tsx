@@ -7,210 +7,184 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { logoBranchStrokeWidth } from "./animated-logo";
 
 type Size = { width: number; height: number; rem: number };
 type Point = { x: number; y: number };
 
-const laneSpacing = 82;
+const desktopLaneSpacing = 82;
 const firstEntryDelay = 0.52;
-const entryStagger = 0.010;
+const entryStagger = 0.01;
 const blueOutlineScale = 0.7;
 const drawDuration = 0.42;
 const drawEase = [0.4, 0, 0.25, 1] as const;
-const terminalPadding = [0.1, 0.02, 0.08, 0, 0.11, 0.04, 0.07] as const;
-const lanePatterns = [
-  { reach: 0.92, jog: 0.22 },
-  { reach: 0.76, jog: -0.25 },
-  { reach: 0.98, jog: 0 },
-  { reach: 0.68, jog: 0.3 },
-  { reach: 0.88, jog: -0.19 },
-] as const;
+// Coordinates on a 100 × 100 board. Each route starts with its entry position
+// along the edge. Subsequent coordinates move alternately in Y and X for
+// top/bottom entries, or X and Y for left/right entries.
+const boardRoutes = {
+  top: [
+    [10, 15, 20],
+    [14, 11, 24, 20, 7, 14],
+    [39, 6, 28, 24, 4, 17],
+    [43, 10, 32, 26, 36, 16],
+    [47, 13, 40, 23],
+    [51, 16, 44, 26],
+    [63, 15, 74, 24],
+    [67, 11, 54, 22, 50],
+    [77, 7, 59, 19, 68, 26],
+    [23, 3, 5, 11],
+    [90, 6, 96, 9],
+  ],
+  right: [
+    [12, 85, 23],
+    [16, 90, 27, 82, 8, 88],
+    [41, 96, 31, 78, 20],
+    [47, 92, 36, 76],
+    [51, 88, 40, 81],
+    [58, 83, 53, 75],
+    [68, 93, 45, 77],
+    [73, 87, 63, 79],
+    [79, 96, 70, 82, 76],
+    [3, 84],
+    [94, 85],
+  ],
+  bottom: [
+    [92, 84, 76, 91, 84],
+    [88, 88, 80],
+    [71, 80, 95, 90],
+    [66, 94, 61, 76],
+    [57, 90, 52, 80],
+    [49, 86, 66, 72],
+    [32, 94, 46, 77],
+    [26, 90, 41, 83, 36],
+    [19, 94, 22, 81, 31, 86],
+    [97, 85],
+    [5, 81],
+  ],
+  left: [
+    [90, 13, 79],
+    [86, 9, 72, 19, 89, 14, 95],
+    [62, 5, 76, 16, 83],
+    [56, 10, 68, 24, 63],
+    [50, 7, 60, 21],
+    [46, 15, 52, 25],
+    [38, 12, 55, 20],
+    [34, 17, 29, 24],
+    [30, 9, 42, 21],
+    [96, 10, 93],
+    [8, 7],
+  ],
+} as const;
 
 function traceLayout({ width, height, rem }: Size) {
   const logoWidth = Math.min(width * 0.85, height * 0.8, 36 * rem);
-  const baseStrokeWidth = logoBranchStrokeWidth(logoWidth) / 2;
+  const laneSpacing = Math.min(desktopLaneSpacing, width / 9, height / 6);
+  const compactness = 1 - laneSpacing / desktopLaneSpacing;
+  const baseStrokeWidth =
+    (logoBranchStrokeWidth(logoWidth) / 2) * (1 - 0.4 * compactness);
   const innerStrokeWidth = baseStrokeWidth / 2;
   const strokeWidth = innerStrokeWidth * (1 + blueOutlineScale);
   const crossingGap = strokeWidth / 4;
-  const runSpacing = strokeWidth + crossingGap;
   const nodeInnerRadius = baseStrokeWidth * 0.525;
   const nodeOuterRadius =
     nodeInnerRadius + (baseStrokeWidth / 4) * blueOutlineScale;
   const nodeClearRadius = nodeOuterRadius + strokeWidth / 8;
-  const clearRadius = logoWidth * 0.45;
-  const minimumTerminalRadius = clearRadius + nodeOuterRadius;
+  const clearRadius = logoWidth * (0.45 - 0.05 * compactness);
+  const verticalPadding =
+    logoWidth * 0.44 * Math.max(0, 1 - width / (9 * desktopLaneSpacing));
   const startInset = nodeClearRadius + strokeWidth / 2 + 2;
   const perimeter = 2 * (width + height);
 
-  const edges = [
-    {
-      side: "top",
-      perimeterOffset: 0,
-      span: width,
-      depth: height / 2,
-      point: (along: number, inward: number): Point => ({
-        x: along,
-        y: inward,
-      }),
-    },
-    {
-      side: "right",
-      perimeterOffset: width,
-      span: height,
-      depth: width / 2,
-      point: (along: number, inward: number): Point => ({
-        x: width - inward,
-        y: along,
-      }),
-    },
-    {
-      side: "bottom",
-      perimeterOffset: width + height,
-      span: width,
-      depth: height / 2,
-      point: (along: number, inward: number): Point => ({
-        x: width - along,
-        y: height - inward,
-      }),
-    },
-    {
-      side: "left",
-      perimeterOffset: 2 * width + height,
-      span: height,
-      depth: width / 2,
-      point: (along: number, inward: number): Point => ({
-        x: inward,
-        y: height - along,
-      }),
-    },
-  ];
-
-  const traces = edges.flatMap((edge, edgeIndex) => {
-    const { side, perimeterOffset, span, depth, point } = edge;
-    const count = Math.max(3, Math.round(span / laneSpacing));
-    const pitch = span / count;
-    const middle = span / 2;
-    const slope = depth / middle;
-
-    // Each edge owns the space between the diagonals from its two corners.
-    const laneDepth = (offset: number, inset: number) =>
-      depth - offset * slope - inset * Math.hypot(1, slope);
-    const circleDepth = (offset: number, radius: number) =>
-      offset < radius ? depth - Math.sqrt(radius ** 2 - offset ** 2) : depth;
-
-    const jogLimit = (from: number, to: number) => {
-      const low = Math.min(from, to);
-      const high = Math.max(from, to);
-      return Math.min(
-        laneDepth(Math.max(middle - low, high - middle), runSpacing / 2),
-        circleDepth(
-          Math.max(0, low - middle, middle - high),
-          minimumTerminalRadius,
-        ),
-      );
-    };
-
-    const lanes = Array.from({ length: count }, (_, index) => {
-      const start = (index + 0.5) * pitch;
-      const patternIndex = (index + edgeIndex * 2) % lanePatterns.length;
-      const pattern = lanePatterns[patternIndex] ?? lanePatterns[0];
-      const end = start + pitch * pattern.jog;
-      const offset = Math.abs(end - middle);
-      const edgeLimit = laneDepth(offset, nodeClearRadius);
-      // Vary the reach per lane so the terminals give the logo an uneven border.
-      const padding =
-        terminalPadding[(index + edgeIndex * 3) % terminalPadding.length] ?? 0;
-      const terminalRadius = minimumTerminalRadius + logoWidth * padding;
-      const ringLimit = circleDepth(offset, terminalRadius);
-      const limit = Math.min(edgeLimit, ringLimit);
-      const meetsCircle =
-        offset < terminalRadius &&
-        ringLimit <= edgeLimit &&
-        (Math.abs(index - (count - 1) / 2) < 1 ||
-          (index + edgeIndex) % 3 === 0);
-      const endpoint = meetsCircle ? limit : limit * pattern.reach;
-
-      const jogDepth = Math.min(
-        endpoint * (0.36 + patternIndex * 0.08),
-        jogLimit(start, end),
-      );
-      return { start, end, endpoint, jogDepth, crossesOver: false };
-    });
-
-    // Swap the entry lanes of selected pairs so their longer jogs cross.
-    const pairSpacing = Math.min(count, 5);
-    const firstPair = Math.min(count - 2, (edgeIndex + 1) % pairSpacing);
-    for (let index = firstPair; index + 1 < count; index++) {
-      const first = lanes[index];
-      const second = lanes[index + 1];
-      if (!first || !second) continue;
-
-      // The shallower jog and the deeper entry share a lane with the shallower
-      // exit. Use the side where those two parallel runs have the most room.
-      const firstSpacing = Math.abs(first.start - first.end);
-      const secondSpacing = Math.abs(second.start - second.end);
-      if (Math.max(firstSpacing, secondSpacing) < runSpacing) continue;
-
-      const availableDepth = Math.min(
-        Math.min(first.endpoint, second.endpoint) - nodeClearRadius,
-        jogLimit(
-          Math.min(first.start, first.end),
-          Math.max(second.start, second.end),
-        ),
-      );
-      const shallow = availableDepth * 0.36;
-      const deep = availableDepth * 0.76;
-      if (deep - shallow < runSpacing) continue;
-
-      const firstStart = first.start;
-      first.start = second.start;
-      second.start = firstStart;
-      const firstIsShallower = firstSpacing >= secondSpacing;
-      first.jogDepth = firstIsShallower ? shallow : deep;
-      second.jogDepth = firstIsShallower ? deep : shallow;
-      second.crossesOver = true;
-      index += pairSpacing - 1;
-    }
-
-    return lanes.flatMap(
-      ({ start, end, endpoint, jogDepth, crossesOver }, index) => {
-        if (endpoint <= nodeOuterRadius) return [];
-
-        const from = point(start, -startInset);
-        const terminal = point(end, endpoint);
-        const bendDepth = Math.max(
-          -2,
-          Math.min(jogDepth, endpoint - nodeClearRadius),
-        );
-        const bends =
-          start === end ? [] : [point(start, bendDepth), point(end, bendDepth)];
-        const points = [from, ...bends, terminal];
-        const offscreenJog =
-          bends.length && bendDepth < -nodeOuterRadius
-            ? Math.abs(end - start)
-            : 0;
-        const path = points
-          .map(
-            ({ x, y }, pointIndex) =>
-              `${pointIndex === 0 ? "M" : "L"}${x},${y}`,
-          )
-          .join(" ");
-
-        return [
-          {
-            key: `${side}-${index}`,
-            path,
-            points,
-            crossesOver,
-            perimeterPosition: perimeterOffset + start,
-            entryDistance: startInset - nodeOuterRadius + offscreenJog,
-          },
-        ];
-      },
+  // Stretch the space near the borders independently of the opening, so long
+  // runs get longer on wide screens without pushing the tips off to the sides.
+  function boardCoordinate(value: number, span: number, radius: number) {
+    const margin = Math.max(
+      span * 0.19,
+      Math.min(span * 0.32, span / 2 - radius),
     );
+    const distance = Math.min(value, 100 - value);
+    const inset =
+      distance <= 25
+        ? (distance / 25) * margin
+        : margin + ((distance - 25) / 25) * (span / 2 - margin);
+    return value <= 50 ? inset : span - inset;
+  }
+
+  const traces = Object.entries(boardRoutes).flatMap(([side, routes]) => {
+    const vertical = side === "top" || side === "bottom";
+    const radius =
+      clearRadius + nodeClearRadius + (vertical ? verticalPadding : 0);
+    return routes.flatMap(([entry, ...turns], index) => {
+      let x = vertical ? entry : side === "left" ? 0 : 100;
+      let y = vertical ? (side === "top" ? 0 : 100) : entry;
+      const toScreen = (): Point => ({
+        x: boardCoordinate(x, width, clearRadius + nodeClearRadius),
+        y: boardCoordinate(
+          y,
+          height,
+          clearRadius + nodeClearRadius + verticalPadding,
+        ),
+      });
+      const border = toScreen();
+      const start = { ...border };
+      if (vertical) start.y += side === "top" ? -startInset : startInset;
+      else start.x += side === "left" ? -startInset : startInset;
+      const points = [start];
+      // Stop at the first contact, including on a sideways leg of a narrow layout.
+      for (const [turn, coordinate] of turns.entries()) {
+        const movesInY = (turn % 2 === 0) === vertical;
+        if (movesInY) y = coordinate;
+        else x = coordinate;
+        const next = toScreen();
+        const previous = points[points.length - 1]!;
+        const axis = movesInY ? "y" : "x";
+        const offset = movesInY ? next.x - width / 2 : next.y - height / 2;
+        if (Math.abs(offset) < radius) {
+          const center = (movesInY ? height : width) / 2;
+          const direction = Math.sign(next[axis] - previous[axis]);
+          const limit =
+            center - direction * Math.sqrt(radius ** 2 - offset ** 2);
+          if (
+            direction * (limit - previous[axis]) >= 0 &&
+            direction * (next[axis] - limit) >= 0
+          ) {
+            next[axis] = limit;
+            if (next[axis] !== previous[axis]) points.push(next);
+            break;
+          }
+        }
+        points.push(next);
+      }
+      const tip = points[points.length - 1]!;
+      if (
+        tip.x < nodeOuterRadius ||
+        tip.x > width - nodeOuterRadius ||
+        tip.y < nodeOuterRadius ||
+        tip.y > height - nodeOuterRadius
+      )
+        return [];
+      const perimeterPosition =
+        side === "top"
+          ? border.x
+          : side === "right"
+            ? width + border.y
+            : side === "bottom"
+              ? width + height + width - border.x
+              : perimeter - border.y;
+      return [
+        {
+          key: `${side}-${index}`,
+          points,
+          path: points
+            .map(({ x, y }, i) => `${i ? "L" : "M"}${x},${y}`)
+            .join(" "),
+          perimeterPosition,
+          entryDistance: startInset - nodeOuterRadius,
+        },
+      ];
+    });
   });
 
   const preferredStart = width / 3;
@@ -255,7 +229,7 @@ type Trace = Layout["traces"][number];
 function CircuitTrace({
   id,
   clearanceId,
-  trace: { points, path, rank, entryDistance, crossesOver },
+  trace: { points, path, rank, entryDistance },
   layout: {
     strokeWidth,
     innerStrokeWidth,
@@ -317,13 +291,11 @@ function CircuitTrace({
 
   return (
     <>
-      {crossesOver && (
-        <use
-          href={traceHref}
-          stroke="black"
-          strokeWidth={strokeWidth + 2 * crossingGap}
-        />
-      )}
+      <use
+        href={traceHref}
+        stroke="black"
+        strokeWidth={strokeWidth + 2 * crossingGap}
+      />
       <use href={traceHref} />
       <use href={traceHref} stroke="black" strokeWidth={innerStrokeWidth} />
       <defs>
@@ -391,7 +363,7 @@ export function CircuitBackdrop() {
     return () => observer.disconnect();
   }, []);
 
-  const layout = size ? traceLayout(size) : null;
+  const layout = useMemo(() => size && traceLayout(size), [size]);
 
   return (
     <div
