@@ -13,6 +13,7 @@ import { useEffect, useRef } from "react";
 
 const artboardSize = 1000;
 const logoScale = 0.962535;
+const greenStrokeWidth = 64;
 const initialExtension = 12_000;
 const centerY = 476;
 const leftX = 186;
@@ -29,6 +30,17 @@ const diagonalRun = spineX - bendX;
 const travelDuration = 0.76;
 const springHandoff = 0.075;
 const travelEase = [0.52, 0, 0.26, 0.82] as const;
+
+export const logoSnapSpring = {
+  type: "spring",
+  stiffness: 360,
+  damping: 22,
+  mass: 0.7,
+} as const;
+
+export function logoBranchStrokeWidth(svgWidth: number) {
+  return (greenStrokeWidth * logoScale * svgWidth) / artboardSize;
+}
 
 type BranchTips = {
   upperLeftX: MotionValue<number>;
@@ -48,7 +60,7 @@ function LogoStrokes({
 }) {
   const green = inner ? "black" : "#2bbc7d";
   const white = inner ? "black" : "white";
-  const nodeWidth = inner ? 32 : 64;
+  const nodeWidth = inner ? greenStrokeWidth / 2 : greenStrokeWidth;
 
   const outline = useMotionTemplate`M${tips.upperLeftX},${upperLeftY} H${bendX} L${spineX},${upperLeftY + diagonalRun} V${lowerLeftY - diagonalRun} L${bendX},${lowerLeftY} H${tips.lowerLeftX}`;
   const middle = useMotionTemplate`M${spineX},${centerY} H${tips.middleLeftX}`;
@@ -141,10 +153,7 @@ export function AnimatedLogo() {
           ease: travelEase,
           onComplete() {
             void animate(extension, 0, {
-              type: "spring",
-              stiffness: 360,
-              damping: 22,
-              mass: 0.7,
+              ...logoSnapSpring,
               velocity,
               restSpeed: 3,
               restDelta: 0.35,

@@ -1,12 +1,26 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from "framer-motion";
+import { useEffect, useId, useRef, useState } from "react";
+
+import { logoBranchStrokeWidth } from "./animated-logo";
 
 type Size = { width: number; height: number; rem: number };
 type Point = { x: number; y: number };
 
 const laneSpacing = 82;
+const firstEntryDelay = 0.52;
+const entryStagger = 0.010;
+const blueOutlineScale = 0.7;
+const drawDuration = 0.42;
+const drawEase = [0.4, 0, 0.25, 1] as const;
+const terminalPadding = [0.1, 0.02, 0.08, 0, 0.11, 0.04, 0.07] as const;
 const lanePatterns = [
   { reach: 0.92, jog: 0.22 },
   { reach: 0.76, jog: -0.25 },
@@ -16,19 +30,25 @@ const lanePatterns = [
 ] as const;
 
 function traceLayout({ width, height, rem }: Size) {
-  const unit = Math.min(width / 2160, height / 1340);
-  const nodeRadius = 13 * unit;
-  const strokeWidth = 5.5 * unit;
-  const nodeInset = nodeRadius + strokeWidth / 2;
-
-  // The marked circle is about 56% of the logo's SVG width.
   const logoWidth = Math.min(width * 0.85, height * 0.8, 36 * rem);
-  const clearRadius = logoWidth * 0.56;
-  const terminalRadius = clearRadius + nodeInset;
+  const baseStrokeWidth = logoBranchStrokeWidth(logoWidth) / 2;
+  const innerStrokeWidth = baseStrokeWidth / 2;
+  const strokeWidth = innerStrokeWidth * (1 + blueOutlineScale);
+  const crossingGap = strokeWidth / 4;
+  const runSpacing = strokeWidth + crossingGap;
+  const nodeInnerRadius = baseStrokeWidth * 0.525;
+  const nodeOuterRadius =
+    nodeInnerRadius + (baseStrokeWidth / 4) * blueOutlineScale;
+  const nodeClearRadius = nodeOuterRadius + strokeWidth / 8;
+  const clearRadius = logoWidth * 0.45;
+  const minimumTerminalRadius = clearRadius + nodeOuterRadius;
+  const startInset = nodeClearRadius + strokeWidth / 2 + 2;
+  const perimeter = 2 * (width + height);
 
   const edges = [
     {
       side: "top",
+      perimeterOffset: 0,
       span: width,
       depth: height / 2,
       point: (along: number, inward: number): Point => ({
@@ -38,6 +58,7 @@ function traceLayout({ width, height, rem }: Size) {
     },
     {
       side: "right",
+      perimeterOffset: width,
       span: height,
       depth: width / 2,
       point: (along: number, inward: number): Point => ({
@@ -47,6 +68,7 @@ function traceLayout({ width, height, rem }: Size) {
     },
     {
       side: "bottom",
+      perimeterOffset: width + height,
       span: width,
       depth: height / 2,
       point: (along: number, inward: number): Point => ({
@@ -56,6 +78,7 @@ function traceLayout({ width, height, rem }: Size) {
     },
     {
       side: "left",
+      perimeterOffset: 2 * width + height,
       span: height,
       depth: width / 2,
       point: (along: number, inward: number): Point => ({
@@ -65,7 +88,8 @@ function traceLayout({ width, height, rem }: Size) {
     },
   ];
 
-  const traces = edges.flatMap(({ side, span, depth, point }, edgeIndex) => {
+  const traces = edges.flatMap((edge, edgeIndex) => {
+    const { side, perimeterOffset, span, depth, point } = edge;
     const count = Math.max(3, Math.round(span / laneSpacing));
     const pitch = span / count;
     const middle = span / 2;
@@ -81,10 +105,10 @@ function traceLayout({ width, height, rem }: Size) {
       const low = Math.min(from, to);
       const high = Math.max(from, to);
       return Math.min(
-        laneDepth(Math.max(middle - low, high - middle), strokeWidth / 2),
+        laneDepth(Math.max(middle - low, high - middle), runSpacing / 2),
         circleDepth(
           Math.max(0, low - middle, middle - high),
-          clearRadius + strokeWidth / 2,
+          minimumTerminalRadius,
         ),
       );
     };
@@ -95,7 +119,11 @@ function traceLayout({ width, height, rem }: Size) {
       const pattern = lanePatterns[patternIndex] ?? lanePatterns[0];
       const end = start + pitch * pattern.jog;
       const offset = Math.abs(end - middle);
-      const edgeLimit = laneDepth(offset, nodeInset);
+      const edgeLimit = laneDepth(offset, nodeClearRadius);
+      // Vary the reach per lane so the terminals give the logo an uneven border.
+      const padding =
+        terminalPadding[(index + edgeIndex * 3) % terminalPadding.length] ?? 0;
+      const terminalRadius = minimumTerminalRadius + logoWidth * padding;
       const ringLimit = circleDepth(offset, terminalRadius);
       const limit = Math.min(edgeLimit, ringLimit);
       const meetsCircle =
@@ -109,70 +137,242 @@ function traceLayout({ width, height, rem }: Size) {
         endpoint * (0.36 + patternIndex * 0.08),
         jogLimit(start, end),
       );
-      return { start, end, endpoint, jogDepth };
+      return { start, end, endpoint, jogDepth, crossesOver: false };
     });
 
     // Swap the entry lanes of selected pairs so their longer jogs cross.
     const pairSpacing = Math.min(count, 5);
     const firstPair = Math.min(count - 2, (edgeIndex + 1) % pairSpacing);
-    for (let index = firstPair; index + 1 < count; index += pairSpacing) {
+    for (let index = firstPair; index + 1 < count; index++) {
       const first = lanes[index];
       const second = lanes[index + 1];
       if (!first || !second) continue;
 
+      // The shallower jog and the deeper entry share a lane with the shallower
+      // exit. Use the side where those two parallel runs have the most room.
+      const firstSpacing = Math.abs(first.start - first.end);
+      const secondSpacing = Math.abs(second.start - second.end);
+      if (Math.max(firstSpacing, secondSpacing) < runSpacing) continue;
+
       const availableDepth = Math.min(
-        first.endpoint,
-        second.endpoint,
+        Math.min(first.endpoint, second.endpoint) - nodeClearRadius,
         jogLimit(
           Math.min(first.start, first.end),
           Math.max(second.start, second.end),
         ),
       );
-      if (availableDepth < pitch * 0.25) continue;
+      const shallow = availableDepth * 0.36;
+      const deep = availableDepth * 0.76;
+      if (deep - shallow < runSpacing) continue;
 
-      // Offset a straight entry slightly to keep the crossing to a single point.
-      const secondStart =
-        first.start === first.end ? first.start + pitch * 0.08 : first.start;
+      const firstStart = first.start;
       first.start = second.start;
-      second.start = secondStart;
-      first.jogDepth = availableDepth * 0.42;
-      second.jogDepth = availableDepth * 0.72;
+      second.start = firstStart;
+      const firstIsShallower = firstSpacing >= secondSpacing;
+      first.jogDepth = firstIsShallower ? shallow : deep;
+      second.jogDepth = firstIsShallower ? deep : shallow;
+      second.crossesOver = true;
+      index += pairSpacing - 1;
     }
 
-    return lanes.map(({ start, end, endpoint, jogDepth }, index) => {
-      if (endpoint <= nodeInset) return null;
+    return lanes.flatMap(
+      ({ start, end, endpoint, jogDepth, crossesOver }, index) => {
+        if (endpoint <= nodeOuterRadius) return [];
 
-      const from = point(start, -2);
-      const terminal = point(end, endpoint);
-      const bends =
-        start === end
-          ? []
-          : [
-              point(start, Math.max(-2, jogDepth)),
-              point(end, Math.max(-2, jogDepth)),
-            ];
-      const path = [from, ...bends, terminal]
-        .map(
-          ({ x, y }, pointIndex) => `${pointIndex === 0 ? "M" : "L"}${x},${y}`,
-        )
-        .join(" ");
+        const from = point(start, -startInset);
+        const terminal = point(end, endpoint);
+        const bendDepth = Math.max(
+          -2,
+          Math.min(jogDepth, endpoint - nodeClearRadius),
+        );
+        const bends =
+          start === end ? [] : [point(start, bendDepth), point(end, bendDepth)];
+        const points = [from, ...bends, terminal];
+        const offscreenJog =
+          bends.length && bendDepth < -nodeOuterRadius
+            ? Math.abs(end - start)
+            : 0;
+        const path = points
+          .map(
+            ({ x, y }, pointIndex) =>
+              `${pointIndex === 0 ? "M" : "L"}${x},${y}`,
+          )
+          .join(" ");
 
-      return {
-        key: `${side}-${index}`,
-        path,
-        terminal,
-        delay: 0.85 + edgeIndex * 0.12 + (index % 8) * 0.065,
-      };
-    });
+        return [
+          {
+            key: `${side}-${index}`,
+            path,
+            points,
+            crossesOver,
+            perimeterPosition: perimeterOffset + start,
+            entryDistance: startInset - nodeOuterRadius + offscreenJog,
+          },
+        ];
+      },
+    );
   });
 
-  return { traces, nodeRadius, strokeWidth };
+  const preferredStart = width / 3;
+  const topLeftEntries = traces.filter(
+    ({ perimeterPosition }) => perimeterPosition < width / 2,
+  );
+  const sweepOrigin = topLeftEntries.reduce<number>(
+    (closest, { perimeterPosition }) =>
+      Math.abs(perimeterPosition - preferredStart) <
+      Math.abs(closest - preferredStart)
+        ? perimeterPosition
+        : closest,
+    topLeftEntries[0]?.perimeterPosition ?? preferredStart,
+  );
+  const sweepDistance = (position: number) =>
+    (position - sweepOrigin + perimeter) % perimeter;
+  const entryOrder = [...traces].sort(
+    (first, second) =>
+      sweepDistance(first.perimeterPosition) -
+      sweepDistance(second.perimeterPosition),
+  );
+  const ranks = new Map(entryOrder.map(({ key }, rank) => [key, rank]));
+
+  return {
+    traces: traces.map((trace) => ({
+      ...trace,
+      rank: ranks.get(trace.key) ?? 0,
+    })),
+    nodeOuterRadius,
+    nodeInnerRadius,
+    nodeClearRadius,
+    strokeWidth,
+    innerStrokeWidth,
+    crossingGap,
+    clearRadius,
+  };
+}
+
+type Layout = ReturnType<typeof traceLayout>;
+type Trace = Layout["traces"][number];
+
+function CircuitTrace({
+  id,
+  clearanceId,
+  trace: { points, path, rank, entryDistance, crossesOver },
+  layout: {
+    strokeWidth,
+    innerStrokeWidth,
+    crossingGap,
+    nodeClearRadius,
+    nodeOuterRadius,
+    nodeInnerRadius,
+  },
+  reduceMotion,
+}: {
+  id: string;
+  clearanceId: string;
+  trace: Trace;
+  layout: Layout;
+  reduceMotion: boolean;
+}) {
+  const travel = useMotionValue(reduceMotion ? 1 : 0);
+  const initialRank = useRef(rank);
+  let length = 0;
+  const distances = points.map((point, index) => {
+    const previous = points[index - 1];
+    if (previous)
+      length += Math.hypot(point.x - previous.x, point.y - previous.y);
+    return length;
+  });
+  const offsets = distances.map((distance) => distance / length);
+  // At zero travel the node is just tangent to the outside of the viewport.
+  const progress = useTransform(travel, [0, 1], [entryDistance / length, 1]);
+  const x = useTransform(
+    progress,
+    offsets,
+    points.map((point) => point.x),
+  );
+  const y = useTransform(
+    progress,
+    offsets,
+    points.map((point) => point.y),
+  );
+
+  useEffect(() => {
+    if (reduceMotion) {
+      travel.jump(1);
+      return;
+    }
+
+    travel.jump(0);
+    const rank = initialRank.current;
+    void animate(travel, 1, {
+      type: "tween",
+      delay: firstEntryDelay + rank * entryStagger,
+      duration: drawDuration,
+      ease: drawEase,
+    });
+    return () => travel.stop();
+  }, [travel, reduceMotion]);
+
+  const traceHref = `#${id}`;
+  const nodeClipId = `${id}-node-clip`;
+
+  return (
+    <>
+      {crossesOver && (
+        <use
+          href={traceHref}
+          stroke="black"
+          strokeWidth={strokeWidth + 2 * crossingGap}
+        />
+      )}
+      <use href={traceHref} />
+      <use href={traceHref} stroke="black" strokeWidth={innerStrokeWidth} />
+      <defs>
+        <motion.path
+          id={id}
+          d={path}
+          clipPath={`url(#${clearanceId})`}
+          style={{ pathLength: progress }}
+        />
+        <clipPath id={nodeClipId}>
+          <motion.circle cx={x} cy={y} r={nodeClearRadius} />
+        </clipPath>
+        {/* The head covers neighboring traces and keeps its own hollow center connected. */}
+        <g id={`${id}-node`} clipPath={`url(#${nodeClipId})`}>
+          <motion.circle
+            cx={x}
+            cy={y}
+            r={nodeClearRadius}
+            fill="black"
+            stroke="none"
+          />
+          <motion.circle
+            cx={x}
+            cy={y}
+            r={nodeOuterRadius}
+            fill="currentColor"
+            stroke="none"
+          />
+          <use href={traceHref} />
+          <motion.circle
+            cx={x}
+            cy={y}
+            r={nodeInnerRadius}
+            fill="black"
+            stroke="none"
+          />
+          <use href={traceHref} stroke="black" strokeWidth={innerStrokeWidth} />
+        </g>
+      </defs>
+    </>
+  );
 }
 
 export function CircuitBackdrop() {
   const backdrop = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size | null>(null);
   const reduceMotion = useReducedMotion();
+  const backdropId = useId();
+  const clearanceId = `${backdropId}-clearance`;
 
   useEffect(() => {
     if (!backdrop.current) return;
@@ -209,41 +409,31 @@ export function CircuitBackdrop() {
           strokeLinecap="round"
           strokeLinejoin="miter"
         >
-          {layout.traces.map((trace) => {
-            if (!trace) return null;
-            const { key, path, terminal, delay } = trace;
-            const duration = 0.72;
-            return (
-              <g key={key}>
-                <motion.path
-                  d={path}
-                  initial={reduceMotion ? false : { pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={
-                    reduceMotion
-                      ? { duration: 0 }
-                      : { delay, duration, ease: "easeOut" }
-                  }
-                />
-                <motion.circle
-                  cx={terminal.x}
-                  cy={terminal.y}
-                  fill="black"
-                  initial={reduceMotion ? false : { r: 0, opacity: 0 }}
-                  animate={{ r: layout.nodeRadius, opacity: 1 }}
-                  transition={
-                    reduceMotion
-                      ? { duration: 0 }
-                      : {
-                          delay: delay + duration,
-                          duration: 0.24,
-                          ease: "easeOut",
-                        }
-                  }
-                />
-              </g>
-            );
-          })}
+          <defs>
+            <clipPath id={clearanceId}>
+              <path
+                clipRule="evenodd"
+                fill="black"
+                d={`M0,0 H${size.width} V${size.height} H0 Z
+                    M${size.width / 2 - layout.clearRadius},${size.height / 2}
+                    a${layout.clearRadius},${layout.clearRadius} 0 1 0 ${2 * layout.clearRadius},0
+                    a${layout.clearRadius},${layout.clearRadius} 0 1 0 ${-2 * layout.clearRadius},0 Z`}
+              />
+            </clipPath>
+          </defs>
+          {layout.traces.map((trace) => (
+            <CircuitTrace
+              key={trace.key}
+              id={`${backdropId}-${trace.key}`}
+              clearanceId={clearanceId}
+              trace={trace}
+              layout={layout}
+              reduceMotion={Boolean(reduceMotion)}
+            />
+          ))}
+          {layout.traces.map(({ key }) => (
+            <use key={`${key}-node`} href={`#${backdropId}-${key}-node`} />
+          ))}
         </svg>
       )}
     </div>
