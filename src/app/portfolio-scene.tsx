@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   animate,
   motion,
@@ -114,7 +115,14 @@ export function PortfolioScene({
         setSection(null);
         if (returningHome.current) {
           returningHome.current = false;
-          if (history.state?.fromLogo) history.back();
+          const entry: unknown = history.state;
+          if (
+            entry &&
+            typeof entry === "object" &&
+            "fromLogo" in entry &&
+            entry.fromLogo === true
+          )
+            history.back();
           else history.replaceState(null, "", "/");
         }
       }
@@ -185,7 +193,7 @@ export function PortfolioScene({
       {!geometry &&
         (initialSection ? (
           <section className="panel-content relative z-20 max-h-full overflow-y-auto bg-black text-white">
-            <a href="/">Back to homepage</a>
+            <Link href="/">Back to homepage</Link>
             <h1>{initialSection}</h1>
             <SectionContent section={initialSection} />
           </section>
