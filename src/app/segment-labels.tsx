@@ -3,8 +3,8 @@
 import { useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-export const sections = ["Work", "About", "Game"] as const;
-export type Section = (typeof sections)[number];
+import { sectionPath, sections, type Section } from "./sections";
+export type { Section } from "./sections";
 
 // The wide W and m have a center post. The k has two diagonal segments.
 const glyphs = {
@@ -152,7 +152,7 @@ export function SegmentLabels({
           key={row}
           className="section-link"
           aria-label={sections[row]}
-          href={`#${sections[row]!.toLowerCase()}`}
+          href={sectionPath(sections[row]!)}
           onClick={(event) => {
             if (
               event.metaKey ||

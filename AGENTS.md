@@ -8,7 +8,10 @@
 - Keep the logo centered on black and the viewport fixed on desktop and mobile. Only content inside a docked panel scrolls.
 - Animate the six logo branches with Framer Motion along horizontal, vertical, or 45° axes. Retract clockwise from the upper left, increasing the stagger from 60 to 100 ms, with a quick recoil and subtle overshoot.
 - The camera follows the rightmost white node to the green frame. Preserve wire widths throughout the flight, feed all four corners with blue traces, and keep cut ends offscreen.
+- Match the white node’s flight to the logo fly-in: fast travel with a spring snap. Ease the camera independently and more slowly, without overshoot, in both directions. Dock only after both settle.
+- Keep the white node’s full flight inside the SVG viewport for Safari. Draw black inner lines over node outlines so the channels stay connected like the logo.
 - Work, About, Game, and Back share the segmented startup flash. Back flashes on docking. With reduced motion, show settled states immediately.
+- Give Back the same hover and keyboard-focus highlight as the logo links.
 
 ## Background traces
 

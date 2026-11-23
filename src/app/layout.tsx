@@ -4,9 +4,9 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
 export const metadata: Metadata = {
-  title: "bitbeans.me",
+  title: "Benas Unguraitis",
   description: "The personal website of BitBeans.",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  icons: [{ rel: "icon", url: "/favicon.ico?v=2" }],
 };
 
 const geist = Geist({

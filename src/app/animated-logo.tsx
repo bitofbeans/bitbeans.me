@@ -12,7 +12,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import type { SceneGeometry } from "./portfolio-scene";
-import { sections, SegmentLabels, type Section } from "./segment-labels";
+import { SegmentLabels, type Section } from "./segment-labels";
+import { sectionPath, sections } from "./sections";
 
 const artboardSize = 1000;
 const logoScale = 0.962535;
@@ -177,7 +178,7 @@ export function AnimatedLogo({
 
     if (
       reduceMotion ||
-      sections.some((s) => location.hash === "#" + s.toLowerCase())
+      sections.some((section) => location.pathname === sectionPath(section))
     ) {
       setShowLabels(true);
       branches.forEach(({ extension }) => extension.jump(0));

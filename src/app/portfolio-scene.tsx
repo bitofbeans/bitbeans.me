@@ -18,9 +18,9 @@ import {
   travelEase,
 } from "./animated-logo";
 import { CircuitBackdrop, traceMetrics } from "./circuit-backdrop";
-import { PortfolioPanel } from "./portfolio-panel";
+import { PortfolioPanel, SectionContent } from "./portfolio-panel";
 
-import { sections, type Section } from "./segment-labels";
+import { sectionPath, sections, type Section } from "./sections";
 
 function sceneGeometry(w: number, h: number, logoWidth: number) {
   const tip = restingWhiteTip(logoWidth);
@@ -52,16 +52,21 @@ function sceneGeometry(w: number, h: number, logoWidth: number) {
 }
 export type SceneGeometry = ReturnType<typeof sceneGeometry>;
 
-export function PortfolioScene() {
+export function PortfolioScene({
+  initialSection = null,
+}: {
+  initialSection?: Section | null;
+}) {
   const root = useRef<HTMLElement>(null);
   const [geometry, setGeometry] = useState<SceneGeometry | null>(null);
-  const [target, setTarget] = useState<Section | null>(null);
-  const [section, setSection] = useState<Section | null>(null);
-  const [docked, setDocked] = useState(false);
-  const progress = useMotionValue(0);
-  const camera = useMotionValue(0);
+  const [target, setTarget] = useState(initialSection);
+  const [section, setSection] = useState(initialSection);
+  const [docked, setDocked] = useState(!!initialSection);
+  const progress = useMotionValue(initialSection ? 1 : 0);
+  const camera = useMotionValue(initialSection ? 1 : 0);
   const reduce = useReducedMotion();
   const lastLink = useRef<HTMLOrSVGElement | null>(null);
+  const returningHome = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
 
   useLayoutEffect(() => {
@@ -81,14 +86,21 @@ export function PortfolioScene() {
 
   useEffect(() => {
     const sync = () => {
+      returningHome.current = false;
+      const legacy =
+        location.pathname === "/" &&
+        sections.find((entry) => "#" + entry.toLowerCase() === location.hash);
+      if (legacy)
+        history.replaceState(null, "", sectionPath(legacy) + location.search);
       const next =
-        sections.find((s) => "#" + s.toLowerCase() === location.hash) ?? null;
+        sections.find((entry) => sectionPath(entry) === location.pathname) ??
+        null;
       if (next) setSection(next);
       setTarget(next);
     };
     sync();
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
   }, []);
 
   const measured = geometry !== null;
@@ -100,6 +112,11 @@ export function PortfolioScene() {
       if (target) setDocked(true);
       else {
         setSection(null);
+        if (returningHome.current) {
+          returningHome.current = false;
+          if (history.state?.fromLogo) history.back();
+          else history.replaceState(null, "", "/");
+        }
       }
     };
     if (reduce || (progress.get() === end && camera.get() === end)) {
@@ -132,7 +149,7 @@ export function PortfolioScene() {
       onComplete() {
         animate(progress, end, {
           ...logoSnapSpring,
-          velocity: distance * (1 - springHandoff) * exitSlope / duration,
+          velocity: (distance * (1 - springHandoff) * exitSlope) / duration,
           restDelta: 0.0001,
           restSpeed: 0.001,
           onComplete() {
@@ -154,16 +171,8 @@ export function PortfolioScene() {
   }, [docked, section]);
 
   function goBack() {
-    const entry = history.state as { fromLogo?: boolean } | null;
-    if (entry?.fromLogo) history.back();
-    else {
-      history.replaceState(
-        history.state,
-        "",
-        location.pathname + location.search,
-      );
-      setTarget(null);
-    }
+    returningHome.current = true;
+    setTarget(null);
   }
   const cameraX = useTransform(camera, (v) => -v * (geometry?.distance ?? 0));
   const cameraY = useTransform(camera, (v) => -v * (geometry?.cameraY ?? 0));
@@ -173,6 +182,25 @@ export function PortfolioScene() {
       ref={root}
       className="fixed inset-x-0 top-0 isolate h-dvh overflow-clip"
     >
+      {!geometry &&
+        (initialSection ? (
+          <section className="panel-content relative z-20 max-h-full overflow-y-auto bg-black text-white">
+            <a href="/">Back to homepage</a>
+            <h1>{initialSection}</h1>
+            <SectionContent section={initialSection} />
+          </section>
+        ) : (
+          <nav
+            aria-label="Portfolio"
+            className="sr-only focus-within:not-sr-only"
+          >
+            {sections.map((entry) => (
+              <a key={entry} href={sectionPath(entry)}>
+                {entry}
+              </a>
+            ))}
+          </nav>
+        ))}
       <motion.div
         className="absolute inset-0"
         style={{ x: cameraX, y: cameraY }}
@@ -188,11 +216,7 @@ export function PortfolioScene() {
             onNavigate={(next, link) => {
               if (section) return;
               lastLink.current = link;
-              history.pushState(
-                { ...history.state, fromLogo: true },
-                "",
-                "#" + next.toLowerCase(),
-              );
+              history.pushState({ fromLogo: true }, "", sectionPath(next));
               setSection(next);
               setTarget(next);
             }}

@@ -22,7 +22,8 @@ const art = [
 const projects = [
   {
     name: "MarMap",
-    description: "Explore the terrain of Mars and find the best route for a rover.",
+    description:
+      "Explore the terrain of Mars and find the best route for a rover.",
     href: "https://marmap.quobits.workers.dev/",
     action: "Explore MarMap",
     image: "/images/marmap.png",
@@ -132,6 +133,9 @@ function About() {
         <a href="mailto:bitofbeans@gmail.com">bitofbeans@gmail.com</a>
       </p>
       <a href="https://github.com/bitofbeans">GitHub ↗</a>
+      <p>
+        <a href="https://www.linkedin.com/in/benas-unguraitis/">LinkedIn ↗</a>
+      </p>
     </div>
   );
 }
@@ -383,6 +387,16 @@ function Frame({ g }: { g: SceneGeometry }) {
   );
 }
 
+export function SectionContent({ section }: { section: Section }) {
+  return section === "Work" ? (
+    <Work />
+  ) : section === "About" ? (
+    <About />
+  ) : (
+    <SignalGame />
+  );
+}
+
 export function PortfolioPanel({
   section,
   geometry: g,
@@ -430,13 +444,7 @@ export function PortfolioPanel({
           <h1 ref={heading} tabIndex={-1}>
             {section}
           </h1>
-          {section === "Work" ? (
-            <Work />
-          ) : section === "About" ? (
-            <About />
-          ) : (
-            <SignalGame />
-          )}
+          <SectionContent section={section} />
         </div>
       </div>
     </section>
