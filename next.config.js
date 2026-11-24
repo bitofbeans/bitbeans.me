@@ -1,10 +1,15 @@
-/**
- * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
- * for Docker builds.
- */
-import "./src/env.js";
-
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  async redirects() {
+    return [
+      {
+        source: "/tpcl",
+        destination:
+          "https://docs.google.com/spreadsheets/d/137Jqpwop9ueLpzEnMtZ41OkYh9Pr3PgVx_o29GJx4QY/",
+        permanent: false,
+      },
+    ];
+  },
+};
 
 export default config;

@@ -7,14 +7,14 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 
 import { logoBranchStrokeWidth } from "./animated-logo";
-
 import type { SceneGeometry } from "./portfolio-scene";
+import { shouldSkipIntro } from "./sections";
 import { StaticTrace } from "./static-trace";
 
-type Size = { width: number; height: number; rem: number };
+type Size = { width: number; height: number; logoWidth: number };
 type Point = { x: number; y: number };
 
 const desktopLaneSpacing = 82;
@@ -104,8 +104,7 @@ export function traceMetrics(width: number, height: number, logoWidth: number) {
   };
 }
 
-function traceLayout({ width, height, rem }: Size) {
-  const logoWidth = Math.min(width * 0.85, height * 0.8, 36 * rem);
+function traceLayout({ width, height, logoWidth }: Size) {
   const {
     compactness,
     strokeWidth,
@@ -265,15 +264,15 @@ function CircuitTrace({
     nodeOuterRadius,
     nodeInnerRadius,
   },
-  reduceMotion,
+  settleImmediately,
 }: {
   id: string;
   clearanceId: string;
   trace: Trace;
   layout: Layout;
-  reduceMotion: boolean;
+  settleImmediately: boolean;
 }) {
-  const travel = useMotionValue(reduceMotion ? 1 : 0);
+  const travel = useMotionValue(settleImmediately ? 1 : 0);
   const initialRank = useRef(rank);
   let length = 0;
   const distances = points.map((point, index) => {
@@ -297,7 +296,7 @@ function CircuitTrace({
   );
 
   useEffect(() => {
-    if (reduceMotion) {
+    if (settleImmediately) {
       travel.jump(1);
       return;
     }
@@ -311,7 +310,7 @@ function CircuitTrace({
       ease: drawEase,
     });
     return () => travel.stop();
-  }, [travel, reduceMotion]);
+  }, [travel, settleImmediately]);
 
   const traceHref = `#${id}`;
   const nodeClipId = `${id}-node-clip`;
@@ -432,35 +431,26 @@ function FlightConnections({
   );
 }
 
-export function CircuitBackdrop({ flight }: { flight: SceneGeometry | null }) {
-  const backdrop = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<Size | null>(null);
+export function CircuitBackdrop({
+  size,
+  flight,
+}: {
+  size: Size | null;
+  flight: SceneGeometry | null;
+}) {
   const reduceMotion = useReducedMotion();
   const backdropId = useId();
   const clearanceId = `${backdropId}-clearance`;
-
-  useEffect(() => {
-    if (!backdrop.current) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      const { width, height } = entry.contentRect;
-      if (!width || !height) return;
-      const rem = Number.parseFloat(
-        getComputedStyle(document.documentElement).fontSize,
-      );
-      setSize({ width, height, rem });
-    });
-
-    observer.observe(backdrop.current);
-    return () => observer.disconnect();
-  }, []);
+  const skipIntro = useRef<boolean | null>(null);
+  if (skipIntro.current === null && typeof window !== "undefined") {
+    skipIntro.current = shouldSkipIntro();
+  }
 
   const layout = useMemo(() => size && traceLayout(size), [size]);
+  const settleImmediately = Boolean(reduceMotion) || Boolean(skipIntro.current);
 
   return (
     <div
-      ref={backdrop}
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 -z-10 text-[#1d3044]"
     >
@@ -494,7 +484,7 @@ export function CircuitBackdrop({ flight }: { flight: SceneGeometry | null }) {
               clearanceId={clearanceId}
               trace={trace}
               layout={layout}
-              reduceMotion={Boolean(reduceMotion)}
+              settleImmediately={settleImmediately}
             />
           ))}
           {layout.traces.map(({ key }) => (

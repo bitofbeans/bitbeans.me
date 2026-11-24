@@ -2,21 +2,21 @@
 
 import { StaticTrace } from "./static-trace";
 import Image from "next/image";
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { SceneGeometry } from "./portfolio-scene";
 import { BackLabel, type Section } from "./segment-labels";
 
 const art = [
-  ["0Band25-6 Shirt.png", "Marching band shirt"],
-  ["1HuckFinnFront.png", "Huckleberry Finn · front cover"],
-  ["2HuckFinnBack.png", "Huckleberry Finn · back cover"],
-  ["3TPAlbum1.png", "Teleport · light cover"],
-  ["4TPAlbum2.png", "Teleport · dark cover"],
-  ["5TPThumb.png", "Teleport · game artwork"],
-  ["Altlogooption.png", "Logo study"],
-  ["BenetDrumBack.png", "Drumline shirt"],
-  ["SLBank.png", "Bank icon"],
-  ["SLGiveaway.png", "Giveaway icon"],
+  ["0Band25-6-Shirt.png", "Marching band shirt", 1226, 684],
+  ["1HuckFinnFront.png", "Huckleberry Finn · front cover", 1391, 1800],
+  ["2HuckFinnBack.png", "Huckleberry Finn · back cover", 1391, 1800],
+  ["3TPAlbum1.png", "Teleport · light cover", 1800, 1800],
+  ["4TPAlbum2.png", "Teleport · dark cover", 1800, 1800],
+  ["5TPThumb.png", "Teleport · game artwork", 2001, 1501],
+  ["Altlogooption.png", "Logo study", 1000, 1000],
+  ["BenetDrumBack.png", "Drumline shirt", 1524, 1800],
+  ["SLBank.png", "Bank icon", 1502, 1502],
+  ["SLGiveaway.png", "Giveaway icon", 1502, 1502],
 ] as const;
 
 const projects = [
@@ -48,8 +48,8 @@ const projects = [
     action: "Play Teleport",
     image: "/images/5TPThumb.png",
     alt: "Teleport artwork with two green characters bursting through the screen",
-    width: 640,
-    height: 480,
+    width: 2001,
+    height: 1501,
   },
 ];
 
@@ -57,17 +57,25 @@ function Work() {
   const [gallery, setGallery] = useState(false);
   return (
     <>
-      <div className="work-switch" aria-label="Work categories">
-        <button aria-pressed={!gallery} onClick={() => setGallery(false)}>
+      <div className="work-switch" role="group" aria-label="Work categories">
+        <button
+          type="button"
+          aria-pressed={!gallery}
+          onClick={() => setGallery(false)}
+        >
           Projects
         </button>
-        <button aria-pressed={gallery} onClick={() => setGallery(true)}>
+        <button
+          type="button"
+          aria-pressed={gallery}
+          onClick={() => setGallery(true)}
+        >
           Designs
         </button>
       </div>
       {gallery ? (
         <div className="design-grid">
-          {art.map(([file, name]) => (
+          {art.map(([file, name, width, height]) => (
             <a
               key={file}
               href={"/images/" + file}
@@ -77,8 +85,8 @@ function Work() {
               <figure>
                 <Image
                   src={"/images/" + file}
-                  width={480}
-                  height={350}
+                  width={width}
+                  height={height}
                   sizes="(max-width: 650px) 85vw, 32vw"
                   alt={name}
                 />
@@ -91,19 +99,22 @@ function Work() {
         <>
           {projects.map((project) => (
             <article className="project-feature" key={project.href}>
-              <a href={project.href} aria-label={project.action}>
-                <Image
-                  src={project.image}
-                  width={project.width}
-                  height={project.height}
-                  sizes="(max-width: 650px) 80vw, 45vw"
-                  alt={project.alt}
-                />
-              </a>
+              <Image
+                src={project.image}
+                width={project.width}
+                height={project.height}
+                sizes="(max-width: 650px) 80vw, 45vw"
+                alt={project.alt}
+              />
               <div>
                 <h2>{project.name}</h2>
                 <p>{project.description}</p>
-                <a className="pixel-action" href={project.href}>
+                <a
+                  className="pixel-action"
+                  href={project.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {project.action} ↗
                 </a>
               </div>
@@ -111,7 +122,11 @@ function Work() {
           ))}
           <article className="mix-row">
             <h2>DJ Mix</h2>
-            <a href="https://soundcloud.com/user-95597774/primaconca">
+            <a
+              href="https://soundcloud.com/user-95597774/primaconca"
+              target="_blank"
+              rel="noreferrer"
+            >
               Listen to the demo ↗
             </a>
           </article>
@@ -132,9 +147,23 @@ function About() {
       <p>
         <a href="mailto:bitofbeans@gmail.com">bitofbeans@gmail.com</a>
       </p>
-      <a href="https://github.com/bitofbeans">GitHub ↗</a>
       <p>
-        <a href="https://www.linkedin.com/in/benas-unguraitis/">LinkedIn ↗</a>
+        <a
+          href="https://github.com/bitofbeans"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub ↗
+        </a>
+      </p>
+      <p>
+        <a
+          href="https://www.linkedin.com/in/benas-unguraitis/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          LinkedIn ↗
+        </a>
       </p>
     </div>
   );
@@ -147,8 +176,22 @@ function SignalGame() {
   );
   const [active, setActive] = useState(-1);
   const [index, setIndex] = useState(0);
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const firstPadRef = useRef<HTMLButtonElement>(null);
+  const flashTimer = useRef<number | null>(null);
   const nextSignal = () => Math.floor(Math.random() * 3);
+
   useEffect(() => {
+    return () => {
+      if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (turn === "play") {
+      firstPadRef.current?.focus({ preventScroll: true });
+      return;
+    }
     if (turn !== "watch") return;
     const timers: number[] = [];
     sequence.forEach((node, i) => {
@@ -160,7 +203,11 @@ function SignalGame() {
     );
     return () => timers.forEach(clearTimeout);
   }, [sequence, turn]);
+
   function press(node: number) {
+    if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+    setActive(node);
+    flashTimer.current = window.setTimeout(() => setActive(-1), 160);
     if (node !== sequence[index]) {
       setTurn("miss");
       return;
@@ -181,6 +228,8 @@ function SignalGame() {
         {names.map((name, i) => (
           <button
             key={name}
+            ref={i === 0 ? firstPadRef : undefined}
+            type="button"
             className={active === i ? "lit" : ""}
             disabled={turn !== "play"}
             onClick={() => press(i)}
@@ -190,7 +239,7 @@ function SignalGame() {
           </button>
         ))}
       </div>
-      <p role="status">
+      <p ref={statusRef} role="status" tabIndex={-1}>
         {turn === "watch"
           ? `Round ${sequence.length} · Watch ${active >= 0 ? names[active] : ""}`
           : turn === "play"
@@ -201,11 +250,16 @@ function SignalGame() {
       </p>
       {(turn === "ready" || turn === "miss") && (
         <button
+          type="button"
           className="pixel-action"
           onClick={() => {
+            if (flashTimer.current !== null)
+              window.clearTimeout(flashTimer.current);
+            setActive(-1);
             setIndex(0);
             setSequence([nextSignal()]);
             setTurn("watch");
+            statusRef.current?.focus({ preventScroll: true });
           }}
         >
           {turn === "ready" ? "Start game" : "Try again"}
@@ -419,6 +473,7 @@ export function PortfolioPanel({
     >
       <Frame g={g} />
       <button
+        type="button"
         className="return-switch"
         onClick={goBack}
         aria-label="Back to homepage"

@@ -1,15 +1,21 @@
 # bitbeans.me
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+Personal website, built with Next.js, React, Tailwind CSS, and Framer Motion, deployed on Netlify.
 
-## T3 Stack ???
+## Development
 
-Yes, this is the stack. Personal website, so I won't need half of these
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+```bash
+npm run dev       # Start local dev server (Turbopack)
+npm run check     # Run ESLint + TypeScript typecheck
+npm run format:check
+```
 
-[And the T3 docs here.](https://create.t3.gg/)
+## Structure
+
+- `src/app/portfolio-scene.tsx` — Scene layout, camera flight, URL/history sync, and focus management
+- `src/app/animated-logo.tsx` — Animated SVG logo with retracting branches and crossbar flight
+- `src/app/circuit-backdrop.tsx` — Procedural circuit traces and flight connectors
+- `src/app/segment-labels.tsx` — 7-segment display navigation labels (`Work`, `About`, `Game`, `Back`)
+- `src/app/portfolio-panel.tsx` — Docked green panel frame and section content (projects, designs, about, game)
+- `src/app/sections.ts` — Routes, section metadata, and URL/hash helpers
+- `public/images/` — Project preview and design artwork

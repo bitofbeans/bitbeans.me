@@ -1,3 +1,9 @@
 [build]
   command = "npm run build"
   publish = ".next"
+
+[[redirects]]
+  from = "/tpcl"
+  to = "https://docs.google.com/spreadsheets/d/137Jqpwop9ueLpzEnMtZ41OkYh9Pr3PgVx_o29GJx4QY/"
+  status = 302
+  force = true

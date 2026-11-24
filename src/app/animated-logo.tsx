@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { SceneGeometry } from "./portfolio-scene";
 import { SegmentLabels, type Section } from "./segment-labels";
-import { sectionPath, sections } from "./sections";
+import { shouldSkipIntro } from "./sections";
 
 const artboardSize = 1000;
 const logoScale = 0.962535;
@@ -122,6 +122,7 @@ export function AnimatedLogo({
   onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
 }) {
   const [showLabels, setShowLabels] = useState(false);
+  const [skippedIntro, setSkippedIntro] = useState(false);
   const logoRef = useRef<HTMLDivElement>(null);
   const upperLeft = useMotionValue(initialExtension);
   const upperRight = useMotionValue(initialExtension);
@@ -176,10 +177,8 @@ export function AnimatedLogo({
       { extension: middleLeft, axis: "horizontal" },
     ];
 
-    if (
-      reduceMotion ||
-      sections.some((section) => location.pathname === sectionPath(section))
-    ) {
+    if (reduceMotion || shouldSkipIntro()) {
+      setSkippedIntro(true);
       setShowLabels(true);
       branches.forEach(({ extension }) => extension.jump(0));
       return;
@@ -223,14 +222,10 @@ export function AnimatedLogo({
       });
     }
 
-    if (document.readyState === "complete") {
-      retractBranches();
-    } else {
-      window.addEventListener("load", retractBranches, { once: true });
-    }
+    const frameId = requestAnimationFrame(retractBranches);
 
     return () => {
-      window.removeEventListener("load", retractBranches);
+      cancelAnimationFrame(frameId);
       branches.forEach(({ extension }) => extension.stop());
     };
   }, [
@@ -271,7 +266,7 @@ export function AnimatedLogo({
               onNavigate={onNavigate}
               x={leftX + 9}
               baselines={[upperLeftY - 58, centerY - 58, lowerLeftY - 58]}
-              reduceMotion={Boolean(reduceMotion)}
+              reduceMotion={Boolean(reduceMotion) || skippedIntro}
             />
           )}
         </g>

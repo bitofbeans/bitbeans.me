@@ -8,7 +8,7 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AnimatedLogo,
   restingWhiteTip,
@@ -20,8 +20,20 @@ import {
 } from "./animated-logo";
 import { CircuitBackdrop, traceMetrics } from "./circuit-backdrop";
 import { PortfolioPanel, SectionContent } from "./portfolio-panel";
+import {
+  markSectionVisited,
+  sectionFromHash,
+  sectionFromPath,
+  sectionPath,
+  sections,
+  sectionTitle,
+  type Section,
+} from "./sections";
 
-import { sectionPath, sections, type Section } from "./sections";
+const sessionToken =
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : String(Math.random());
 
 function sceneGeometry(w: number, h: number, logoWidth: number) {
   const tip = restingWhiteTip(logoWidth);
@@ -38,6 +50,7 @@ function sceneGeometry(w: number, h: number, logoWidth: number) {
   return {
     w,
     h,
+    logoWidth,
     wire,
     traces,
     left,
@@ -67,10 +80,12 @@ export function PortfolioScene({
   const camera = useMotionValue(initialSection ? 1 : 0);
   const reduce = useReducedMotion();
   const lastLink = useRef<HTMLOrSVGElement | null>(null);
+  const hadSection = useRef(Boolean(initialSection));
   const returningHome = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
 
   useLayoutEffect(() => {
+    if (initialSection) markSectionVisited();
     const el = root.current!;
     const measure = () => {
       const w = el.clientWidth,
@@ -83,19 +98,16 @@ export function PortfolioScene({
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [initialSection]);
 
   useEffect(() => {
     const sync = () => {
       returningHome.current = false;
       const legacy =
-        location.pathname === "/" &&
-        sections.find((entry) => "#" + entry.toLowerCase() === location.hash);
+        location.pathname === "/" ? sectionFromHash(location.hash) : null;
       if (legacy)
         history.replaceState(null, "", sectionPath(legacy) + location.search);
-      const next =
-        sections.find((entry) => sectionPath(entry) === location.pathname) ??
-        null;
+      const next = sectionFromPath(location.pathname);
       if (next) setSection(next);
       setTarget(next);
     };
@@ -103,6 +115,10 @@ export function PortfolioScene({
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
   }, []);
+
+  useEffect(() => {
+    document.title = sectionTitle(target);
+  }, [target]);
 
   const measured = geometry !== null;
   useEffect(() => {
@@ -120,7 +136,7 @@ export function PortfolioScene({
             entry &&
             typeof entry === "object" &&
             "fromLogo" in entry &&
-            entry.fromLogo === true
+            entry.fromLogo === sessionToken
           )
             history.back();
           else history.replaceState(null, "", "/");
@@ -174,8 +190,18 @@ export function PortfolioScene({
   }, [target, measured, progress, camera, reduce]); // Resizing a docked panel does not replay the flight.
 
   useEffect(() => {
+    if (section) {
+      markSectionVisited();
+      hadSection.current = true;
+    }
     if (docked) heading.current?.focus({ preventScroll: true });
-    else if (!section) lastLink.current?.focus({ preventScroll: true });
+    else if (!section && hadSection.current) {
+      hadSection.current = false;
+      const fallback =
+        lastLink.current ??
+        root.current?.querySelector<SVGAElement>(".section-link");
+      fallback?.focus({ preventScroll: true });
+    }
   }, [docked, section]);
 
   function goBack() {
@@ -184,12 +210,24 @@ export function PortfolioScene({
   }
   const cameraX = useTransform(camera, (v) => -v * (geometry?.distance ?? 0));
   const cameraY = useTransform(camera, (v) => -v * (geometry?.cameraY ?? 0));
+  const backdropSize = useMemo(
+    () =>
+      geometry
+        ? {
+            width: geometry.w,
+            height: geometry.h,
+            logoWidth: geometry.logoWidth,
+          }
+        : null,
+    [geometry],
+  );
 
   return (
     <main
       ref={root}
       className="fixed inset-x-0 top-0 isolate h-dvh overflow-clip"
     >
+      {!section && <h1 className="sr-only">Benas Unguraitis — BitBeans</h1>}
       {!geometry &&
         (initialSection ? (
           <section className="panel-content relative z-20 max-h-full overflow-y-auto bg-black text-white">
@@ -217,14 +255,21 @@ export function PortfolioScene({
           inert={!!section}
           className="pointer-events-none absolute inset-0 isolate z-10 grid place-items-center"
         >
-          <CircuitBackdrop flight={section ? geometry : null} />
+          <CircuitBackdrop
+            size={backdropSize}
+            flight={section ? geometry : null}
+          />
           <AnimatedLogo
             progress={progress}
             geometry={geometry}
             onNavigate={(next, link) => {
               if (section) return;
               lastLink.current = link;
-              history.pushState({ fromLogo: true }, "", sectionPath(next));
+              history.pushState(
+                { fromLogo: sessionToken },
+                "",
+                sectionPath(next),
+              );
               setSection(next);
               setTarget(next);
             }}
