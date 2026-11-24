@@ -21,7 +21,7 @@ export const sectionMeta: Record<
   },
   Game: {
     title: "Game",
-    description: "Signal memory — a mini game on bitbeans.me.",
+    description: "Circuit Snake — a mini game on bitbeans.me.",
   },
 };
 

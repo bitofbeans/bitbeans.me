@@ -116,10 +116,12 @@ export function AnimatedLogo({
   progress,
   geometry,
   onNavigate,
+  onHoverSection,
 }: {
   progress: MotionValue<number>;
   geometry: SceneGeometry | null;
   onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
+  onHoverSection?: (section: Section | null) => void;
 }) {
   const [showLabels, setShowLabels] = useState(false);
   const [skippedIntro, setSkippedIntro] = useState(false);
@@ -264,6 +266,7 @@ export function AnimatedLogo({
           {showLabels && (
             <SegmentLabels
               onNavigate={onNavigate}
+              onHoverSection={onHoverSection}
               x={leftX + 9}
               baselines={[upperLeftY - 58, centerY - 58, lowerLeftY - 58]}
               reduceMotion={Boolean(reduceMotion) || skippedIntro}

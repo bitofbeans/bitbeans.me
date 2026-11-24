@@ -76,6 +76,7 @@ export function PortfolioScene({
   const [target, setTarget] = useState(initialSection);
   const [section, setSection] = useState(initialSection);
   const [docked, setDocked] = useState(!!initialSection);
+  const [hoveredSection, setHoveredSection] = useState<Section | null>(null);
   const progress = useMotionValue(initialSection ? 1 : 0);
   const camera = useMotionValue(initialSection ? 1 : 0);
   const reduce = useReducedMotion();
@@ -258,12 +259,16 @@ export function PortfolioScene({
           <CircuitBackdrop
             size={backdropSize}
             flight={section ? geometry : null}
+            hoveredSection={section ? null : hoveredSection}
+            interactive={!section}
           />
           <AnimatedLogo
             progress={progress}
             geometry={geometry}
+            onHoverSection={setHoveredSection}
             onNavigate={(next, link) => {
               if (section) return;
+              setHoveredSection(null);
               lastLink.current = link;
               history.pushState(
                 { fromLogo: sessionToken },

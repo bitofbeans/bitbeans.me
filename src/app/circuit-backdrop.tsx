@@ -7,11 +7,11 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion";
-import { useEffect, useId, useMemo, useRef } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef } from "react";
 
 import { logoBranchStrokeWidth } from "./animated-logo";
 import type { SceneGeometry } from "./portfolio-scene";
-import { shouldSkipIntro } from "./sections";
+import { shouldSkipIntro, type Section } from "./sections";
 import { StaticTrace } from "./static-trace";
 
 type Size = { width: number; height: number; logoWidth: number };
@@ -252,10 +252,31 @@ function traceLayout({ width, height, logoWidth }: Size) {
 type Layout = ReturnType<typeof traceLayout>;
 type Trace = Layout["traces"][number];
 
+function pointToSegmentDistance(p: Point, a: Point, b: Point) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  const t = Math.max(
+    0,
+    Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq),
+  );
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function pointToTraceDistance(p: Point, points: readonly Point[]) {
+  let best = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const d = pointToSegmentDistance(p, points[i - 1]!, points[i]!);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
 function CircuitTrace({
   id,
   clearanceId,
-  trace: { points, path, rank, entryDistance },
+  trace: { key, points, path, rank, entryDistance },
   layout: {
     strokeWidth,
     innerStrokeWidth,
@@ -265,15 +286,30 @@ function CircuitTrace({
     nodeInnerRadius,
   },
   settleImmediately,
+  charged,
+  reduceMotion,
+  registerPulse,
 }: {
   id: string;
   clearanceId: string;
   trace: Trace;
   layout: Layout;
   settleImmediately: boolean;
+  charged: boolean;
+  reduceMotion: boolean;
+  registerPulse: (key: string, fn: (() => void) | null) => void;
 }) {
   const travel = useMotionValue(settleImmediately ? 1 : 0);
+  const chargeLength = useMotionValue(0);
+  const chargeOpacity = useMotionValue(0);
+  const nodeChargeOpacity = useMotionValue(0);
   const initialRank = useRef(rank);
+  const chargedRef = useRef(charged);
+  const wasChargedRef = useRef(false);
+  const lastPulseRef = useRef(0);
+  const fadeTimerRef = useRef<number | null>(null);
+  chargedRef.current = charged;
+
   let length = 0;
   const distances = points.map((point, index) => {
     const previous = points[index - 1];
@@ -312,6 +348,123 @@ function CircuitTrace({
     return () => travel.stop();
   }, [travel, settleImmediately]);
 
+  // Charge/discharge smoothly when hovering Work / About / Game.
+  useEffect(() => {
+    if (!charged && !wasChargedRef.current) return;
+    wasChargedRef.current = charged;
+
+    if (fadeTimerRef.current !== null) {
+      window.clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+    if (charged) {
+      if (reduceMotion) {
+        chargeLength.jump(1);
+        chargeOpacity.jump(0.95);
+        nodeChargeOpacity.jump(0.95);
+        return;
+      }
+      chargeLength.jump(0);
+      chargeOpacity.jump(0.95);
+      nodeChargeOpacity.jump(0);
+      void animate(chargeLength, 1, {
+        type: "tween",
+        duration: 0.24,
+        ease: "easeOut",
+        onComplete() {
+          if (chargedRef.current) {
+            void animate(nodeChargeOpacity, 0.95, {
+              type: "tween",
+              duration: 0.14,
+              ease: "easeOut",
+            });
+          }
+        },
+      });
+    } else {
+      if (reduceMotion) {
+        chargeOpacity.jump(0);
+        nodeChargeOpacity.jump(0);
+        chargeLength.jump(0);
+        return;
+      }
+      void animate(chargeOpacity, 0, {
+        type: "tween",
+        duration: 0.26,
+        ease: "easeOut",
+      });
+      void animate(nodeChargeOpacity, 0, {
+        type: "tween",
+        duration: 0.22,
+        ease: "easeOut",
+      });
+    }
+  }, [charged, reduceMotion, chargeLength, chargeOpacity, nodeChargeOpacity]);
+
+  // Register imperative cursor-proximity pulse handler (zero React re-renders).
+  useEffect(() => {
+    const triggerPulse = () => {
+      if (reduceMotion || chargedRef.current) return;
+      const now = performance.now();
+      if (now - lastPulseRef.current < 950) return;
+      lastPulseRef.current = now;
+
+      if (fadeTimerRef.current !== null) {
+        window.clearTimeout(fadeTimerRef.current);
+        fadeTimerRef.current = null;
+      }
+      chargeLength.stop();
+      chargeOpacity.stop();
+      nodeChargeOpacity.stop();
+
+      chargeLength.jump(0);
+      chargeOpacity.jump(0.85);
+      nodeChargeOpacity.jump(0);
+
+      void animate(chargeLength, 1, {
+        type: "tween",
+        duration: 0.3,
+        ease: "easeOut",
+        onComplete() {
+          if (chargedRef.current) return;
+          void animate(nodeChargeOpacity, 0.9, {
+            type: "tween",
+            duration: 0.12,
+            ease: "easeOut",
+          });
+          fadeTimerRef.current = window.setTimeout(() => {
+            if (chargedRef.current) return;
+            void animate(chargeOpacity, 0, {
+              type: "tween",
+              duration: 0.42,
+              ease: "easeOut",
+            });
+            void animate(nodeChargeOpacity, 0, {
+              type: "tween",
+              duration: 0.36,
+              ease: "easeOut",
+            });
+          }, 110);
+        },
+      });
+    };
+
+    registerPulse(key, triggerPulse);
+    return () => {
+      registerPulse(key, null);
+      if (fadeTimerRef.current !== null) {
+        window.clearTimeout(fadeTimerRef.current);
+      }
+    };
+  }, [
+    key,
+    reduceMotion,
+    registerPulse,
+    chargeLength,
+    chargeOpacity,
+    nodeChargeOpacity,
+  ]);
+
   const traceHref = `#${id}`;
   const nodeClipId = `${id}-node-clip`;
 
@@ -323,6 +476,13 @@ function CircuitTrace({
         strokeWidth={strokeWidth + 2 * crossingGap}
       />
       <use href={traceHref} />
+      <motion.path
+        d={path}
+        clipPath={`url(#${clearanceId})`}
+        stroke="#5792af"
+        strokeWidth={strokeWidth}
+        style={{ pathLength: chargeLength, opacity: chargeOpacity }}
+      />
       <use href={traceHref} stroke="black" strokeWidth={innerStrokeWidth} />
       <defs>
         <motion.path
@@ -350,7 +510,22 @@ function CircuitTrace({
             fill="currentColor"
             stroke="none"
           />
+          <motion.circle
+            cx={x}
+            cy={y}
+            r={nodeOuterRadius}
+            fill="#5792af"
+            stroke="none"
+            style={{ opacity: nodeChargeOpacity }}
+          />
           <use href={traceHref} />
+          <motion.path
+            d={path}
+            clipPath={`url(#${clearanceId})`}
+            stroke="#5792af"
+            strokeWidth={strokeWidth}
+            style={{ pathLength: chargeLength, opacity: chargeOpacity }}
+          />
           <motion.circle
             cx={x}
             cy={y}
@@ -434,9 +609,13 @@ function FlightConnections({
 export function CircuitBackdrop({
   size,
   flight,
+  hoveredSection = null,
+  interactive = false,
 }: {
   size: Size | null;
   flight: SceneGeometry | null;
+  hoveredSection?: Section | null;
+  interactive?: boolean;
 }) {
   const reduceMotion = useReducedMotion();
   const backdropId = useId();
@@ -448,6 +627,75 @@ export function CircuitBackdrop({
 
   const layout = useMemo(() => size && traceLayout(size), [size]);
   const settleImmediately = Boolean(reduceMotion) || Boolean(skipIntro.current);
+
+  const pulseHandlers = useRef(new Map<string, () => void>());
+  const registerPulse = useCallback((key: string, fn: (() => void) | null) => {
+    if (fn) pulseHandlers.current.set(key, fn);
+    else pulseHandlers.current.delete(key);
+  }, []);
+
+  // Determine which traces are closest to the hovered logo link (Work/About/Game).
+  const chargedKeys = useMemo(() => {
+    if (!hoveredSection || !size || !layout) return new Set<string>();
+    const offsetY =
+      hoveredSection === "Work"
+        ? -0.25 * size.logoWidth
+        : hoveredSection === "Game"
+          ? 0.25 * size.logoWidth
+          : 0;
+    const anchor: Point = {
+      x: size.width / 2 - size.logoWidth * 0.26,
+      y: size.height / 2 + offsetY,
+    };
+    const ranked = [...layout.traces]
+      .map((trace) => {
+        const tip = trace.points[trace.points.length - 1]!;
+        return {
+          key: trace.key,
+          dist: Math.hypot(tip.x - anchor.x, tip.y - anchor.y),
+        };
+      })
+      .sort((a, b) => a.dist - b.dist);
+    return new Set(ranked.slice(0, 5).map((entry) => entry.key));
+  }, [hoveredSection, size, layout]);
+
+  // Send subtle #5792af power pulses down nearby traces as the cursor moves.
+  useEffect(() => {
+    if (!interactive || !layout || !size || reduceMotion) return;
+
+    const introReadyAt = settleImmediately
+      ? 0
+      : performance.now() +
+        (firstEntryDelay + layout.traces.length * entryStagger + drawDuration) *
+          1000;
+
+    let lastCheck = 0;
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      const now = performance.now();
+      if (now < introReadyAt || now - lastCheck < 45) return;
+      lastCheck = now;
+
+      const p: Point = { x: event.clientX, y: event.clientY };
+      let closestKey: string | null = null;
+      let closestDist = 135;
+
+      for (const trace of layout.traces) {
+        const d = pointToTraceDistance(p, trace.points);
+        if (d < closestDist) {
+          closestDist = d;
+          closestKey = trace.key;
+        }
+      }
+
+      if (closestKey) {
+        pulseHandlers.current.get(closestKey)?.();
+      }
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onPointerMove);
+  }, [interactive, layout, size, reduceMotion, settleImmediately]);
 
   return (
     <div
@@ -485,6 +733,9 @@ export function CircuitBackdrop({
               trace={trace}
               layout={layout}
               settleImmediately={settleImmediately}
+              charged={chargedKeys.has(trace.key)}
+              reduceMotion={Boolean(reduceMotion)}
+              registerPulse={registerPulse}
             />
           ))}
           {layout.traces.map(({ key }) => (

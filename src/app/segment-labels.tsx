@@ -21,6 +21,17 @@ const glyphs = {
   a: { width: 12, lit: "abcefg" },
   m: { width: 21, lit: "cegi" },
   e: { width: 12, lit: "adefg" },
+  "0": { width: 12, lit: "abcdef" },
+  "1": { width: 12, lit: "bc" },
+  "2": { width: 12, lit: "abdeg" },
+  "3": { width: 12, lit: "abcdg" },
+  "4": { width: 12, lit: "bcfg" },
+  "5": { width: 12, lit: "acdfg" },
+  "6": { width: 12, lit: "acdefg" },
+  "7": { width: 12, lit: "abc" },
+  "8": { width: 12, lit: "abcdefg" },
+  "9": { width: 12, lit: "abcdfg" },
+  "-": { width: 12, lit: "g" },
 } as const;
 
 type Letter = keyof typeof glyphs;
@@ -117,6 +128,49 @@ function WordSegments({
   ));
 }
 
+export function SegmentDigits({
+  value,
+  height = 24,
+  flash = false,
+  className,
+}: {
+  value: string;
+  height?: number;
+  flash?: boolean;
+  className?: string;
+}) {
+  const reduceMotion = useReducedMotion();
+  const [flashWord] = useState(() => [makeWord(value)]);
+  const word = flash ? flashWord[0]! : makeWord(value);
+  const masks = useSegmentMasks(flashWord, !flash || Boolean(reduceMotion));
+  const totalWidth =
+    word.reduce((acc, cell, i) => {
+      const char = value[i] as Letter | undefined;
+      const w = char && char in glyphs ? glyphs[char].width : 12;
+      return Math.max(acc, cell.x + w);
+    }, 0) + 6;
+  const viewWidth = totalWidth + 4;
+  const viewHeight = 29;
+  const scaledWidth = (viewWidth / viewHeight) * height;
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox={`-2 -2 ${viewWidth} ${viewHeight}`}
+      width={scaledWidth}
+      height={height}
+      className={className}
+    >
+      <g transform="translate(2 0) skewX(-5)">
+        <WordSegments
+          word={word}
+          masks={flash && masks !== null ? (masks[0] ?? []) : null}
+        />
+      </g>
+    </svg>
+  );
+}
+
 export function BackLabel() {
   const reduceMotion = useReducedMotion();
   const masks = useSegmentMasks(backWords, Boolean(reduceMotion));
@@ -136,9 +190,11 @@ export function SegmentLabels({
   x,
   baselines,
   onNavigate,
+  onHoverSection,
   reduceMotion,
 }: {
   onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
+  onHoverSection?: (section: Section | null) => void;
   x: number;
   baselines: readonly number[];
   reduceMotion: boolean;
@@ -147,34 +203,50 @@ export function SegmentLabels({
 
   return (
     <g>
-      {words.map((word, row) => (
-        <a
-          key={row}
-          className="section-link"
-          aria-label={sections[row]}
-          href={sectionPath(sections[row]!)}
-          onClick={(event) => {
-            if (
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey
-            )
-              return;
-            event.preventDefault();
-            onNavigate(sections[row]!, event.currentTarget);
-          }}
-        >
-          <g transform={`translate(${x} ${baselines[row]}) scale(2) skewX(-5)`}>
-            <rect x="-29" y="-29" width="120" height="85" fill="transparent" />
-            <WordSegments
-              word={word}
-              masks={masks === null ? null : (masks[row] ?? [])}
-              y={-24}
-            />
-          </g>
-        </a>
-      ))}
+      {words.map((word, row) => {
+        const entry = sections[row]!;
+        return (
+          <a
+            key={row}
+            className="section-link"
+            aria-label={entry}
+            href={sectionPath(entry)}
+            onMouseEnter={() => onHoverSection?.(entry)}
+            onMouseLeave={() => onHoverSection?.(null)}
+            onFocus={() => onHoverSection?.(entry)}
+            onBlur={() => onHoverSection?.(null)}
+            onClick={(event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return;
+              event.preventDefault();
+              onHoverSection?.(null);
+              onNavigate(entry, event.currentTarget);
+            }}
+          >
+            <g
+              transform={`translate(${x} ${baselines[row]}) scale(2) skewX(-5)`}
+            >
+              <rect
+                x="-29"
+                y="-29"
+                width="120"
+                height="85"
+                fill="transparent"
+              />
+              <WordSegments
+                word={word}
+                masks={masks === null ? null : (masks[row] ?? [])}
+                y={-24}
+              />
+            </g>
+          </a>
+        );
+      })}
     </g>
   );
 }
