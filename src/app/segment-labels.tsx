@@ -1,7 +1,7 @@
 "use client";
 
 import { useReducedMotion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { sectionPath, sections, type Section } from "./sections";
 export type { Section } from "./sections";
@@ -73,12 +73,19 @@ function makeLetter(letter: Letter) {
 
 function makeWord(word: string) {
   let x = 0;
-  return Array.from(word, (char) => {
+  const cells: {
+    x: number;
+    width: number;
+    segments: ReturnType<typeof makeLetter>;
+  }[] = [];
+  for (const char of word) {
+    if (!(char in glyphs)) continue;
     const letter = char as Letter;
-    const cell = { x, segments: makeLetter(letter) };
-    x += glyphs[letter].width + 4;
-    return cell;
-  });
+    const width = glyphs[letter].width;
+    cells.push({ x, width, segments: makeLetter(letter) });
+    x += width + 4;
+  }
+  return cells;
 }
 const words = sections.map(makeWord);
 const back = makeWord("back");
@@ -140,15 +147,11 @@ export function SegmentDigits({
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
-  const [flashWord] = useState(() => [makeWord(value)]);
-  const word = flash ? flashWord[0]! : makeWord(value);
-  const masks = useSegmentMasks(flashWord, !flash || Boolean(reduceMotion));
+  const word = useMemo(() => makeWord(value), [value]);
+  const flashWords = useMemo(() => [word], [word]);
+  const masks = useSegmentMasks(flashWords, !flash || Boolean(reduceMotion));
   const totalWidth =
-    word.reduce((acc, cell, i) => {
-      const char = value[i] as Letter | undefined;
-      const w = char && char in glyphs ? glyphs[char].width : 12;
-      return Math.max(acc, cell.x + w);
-    }, 0) + 6;
+    word.reduce((acc, cell) => Math.max(acc, cell.x + cell.width), 0) + 6;
   const viewWidth = totalWidth + 4;
   const viewHeight = 29;
   const scaledWidth = (viewWidth / viewHeight) * height;

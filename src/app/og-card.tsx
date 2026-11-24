@@ -8,9 +8,12 @@ export const ogContentType = "image/png";
 
 let cachedFont: Promise<ArrayBuffer> | null = null;
 function loadPixelifyFont() {
-  cachedFont ??= readFile(
-    join(process.cwd(), "public/fonts/pixelify-sans.ttf"),
-  ).then((buf) => new Uint8Array(buf).buffer);
+  cachedFont ??= readFile(join(process.cwd(), "public/fonts/pixelify-sans.ttf"))
+    .then((buf) => new Uint8Array(buf).buffer)
+    .catch((error: unknown) => {
+      cachedFont = null;
+      throw error;
+    });
   return cachedFont;
 }
 

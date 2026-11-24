@@ -7,7 +7,14 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion";
-import { useCallback, useEffect, useId, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { logoBranchStrokeWidth } from "./animated-logo";
 import type { SceneGeometry } from "./portfolio-scene";
@@ -308,7 +315,6 @@ function CircuitTrace({
   const wasChargedRef = useRef(false);
   const lastPulseRef = useRef(0);
   const fadeTimerRef = useRef<number | null>(null);
-  chargedRef.current = charged;
 
   let length = 0;
   const distances = points.map((point, index) => {
@@ -350,6 +356,7 @@ function CircuitTrace({
 
   // Charge/discharge smoothly when hovering Work / About / Game.
   useEffect(() => {
+    chargedRef.current = charged;
     if (!charged && !wasChargedRef.current) return;
     wasChargedRef.current = charged;
 
@@ -357,6 +364,7 @@ function CircuitTrace({
       window.clearTimeout(fadeTimerRef.current);
       fadeTimerRef.current = null;
     }
+    let cancelled = false;
     if (charged) {
       if (reduceMotion) {
         chargeLength.jump(1);
@@ -372,7 +380,7 @@ function CircuitTrace({
         duration: 0.24,
         ease: "easeOut",
         onComplete() {
-          if (chargedRef.current) {
+          if (!cancelled && chargedRef.current) {
             void animate(nodeChargeOpacity, 0.95, {
               type: "tween",
               duration: 0.14,
@@ -388,6 +396,7 @@ function CircuitTrace({
         chargeLength.jump(0);
         return;
       }
+      chargeLength.stop();
       void animate(chargeOpacity, 0, {
         type: "tween",
         duration: 0.26,
@@ -399,12 +408,16 @@ function CircuitTrace({
         ease: "easeOut",
       });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [charged, reduceMotion, chargeLength, chargeOpacity, nodeChargeOpacity]);
 
   // Register imperative cursor-proximity pulse handler (zero React re-renders).
   useEffect(() => {
+    let mounted = true;
     const triggerPulse = () => {
-      if (reduceMotion || chargedRef.current) return;
+      if (!mounted || reduceMotion || chargedRef.current) return;
       const now = performance.now();
       if (now - lastPulseRef.current < 950) return;
       lastPulseRef.current = now;
@@ -426,14 +439,15 @@ function CircuitTrace({
         duration: 0.3,
         ease: "easeOut",
         onComplete() {
-          if (chargedRef.current) return;
+          if (!mounted || chargedRef.current) return;
           void animate(nodeChargeOpacity, 0.9, {
             type: "tween",
             duration: 0.12,
             ease: "easeOut",
           });
           fadeTimerRef.current = window.setTimeout(() => {
-            if (chargedRef.current) return;
+            fadeTimerRef.current = null;
+            if (!mounted || chargedRef.current) return;
             void animate(chargeOpacity, 0, {
               type: "tween",
               duration: 0.42,
@@ -451,9 +465,14 @@ function CircuitTrace({
 
     registerPulse(key, triggerPulse);
     return () => {
+      mounted = false;
       registerPulse(key, null);
+      chargeLength.stop();
+      chargeOpacity.stop();
+      nodeChargeOpacity.stop();
       if (fadeTimerRef.current !== null) {
         window.clearTimeout(fadeTimerRef.current);
+        fadeTimerRef.current = null;
       }
     };
   }, [
@@ -620,13 +639,12 @@ export function CircuitBackdrop({
   const reduceMotion = useReducedMotion();
   const backdropId = useId();
   const clearanceId = `${backdropId}-clearance`;
-  const skipIntro = useRef<boolean | null>(null);
-  if (skipIntro.current === null && typeof window !== "undefined") {
-    skipIntro.current = shouldSkipIntro();
-  }
+  const [skipIntro] = useState(
+    () => typeof window !== "undefined" && shouldSkipIntro(),
+  );
 
   const layout = useMemo(() => size && traceLayout(size), [size]);
-  const settleImmediately = Boolean(reduceMotion) || Boolean(skipIntro.current);
+  const settleImmediately = Boolean(reduceMotion) || skipIntro;
 
   const pulseHandlers = useRef(new Map<string, () => void>());
   const registerPulse = useCallback((key: string, fn: (() => void) | null) => {

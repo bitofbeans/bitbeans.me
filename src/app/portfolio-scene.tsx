@@ -30,6 +30,8 @@ import {
   type Section,
 } from "./sections";
 
+const enableHomeBackdropHighlights = false;
+
 const sessionToken =
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -76,6 +78,7 @@ export function PortfolioScene({
   const [target, setTarget] = useState(initialSection);
   const [section, setSection] = useState(initialSection);
   const [docked, setDocked] = useState(!!initialSection);
+  const [labelsReady, setLabelsReady] = useState(Boolean(initialSection));
   const [hoveredSection, setHoveredSection] = useState<Section | null>(null);
   const progress = useMotionValue(initialSection ? 1 : 0);
   const camera = useMotionValue(initialSection ? 1 : 0);
@@ -151,6 +154,7 @@ export function PortfolioScene({
       return;
     }
     const distance = end - progress.get();
+    let cancelled = false;
     let cameraDone = camera.get() === end;
     let nodeDone = distance === 0;
     if (!cameraDone) {
@@ -159,12 +163,18 @@ export function PortfolioScene({
         duration: 1.15 * Math.abs(end - camera.get()),
         ease: [0.42, 0, 0.42, 1],
         onComplete() {
+          if (cancelled) return;
           cameraDone = true;
           if (nodeDone) finish();
         },
       });
     }
-    if (nodeDone) return () => camera.stop();
+    if (nodeDone) {
+      return () => {
+        cancelled = true;
+        camera.stop();
+      };
+    }
     const duration = travelDuration * Math.abs(distance);
     const exitSlope = (1 - travelEase[3]) / (1 - travelEase[2]);
     animate(progress, end - distance * springHandoff, {
@@ -172,12 +182,14 @@ export function PortfolioScene({
       duration,
       ease: travelEase,
       onComplete() {
+        if (cancelled) return;
         animate(progress, end, {
           ...logoSnapSpring,
           velocity: (distance * (1 - springHandoff) * exitSlope) / duration,
           restDelta: 0.0001,
           restSpeed: 0.001,
           onComplete() {
+            if (cancelled) return;
             nodeDone = true;
             if (cameraDone) finish();
           },
@@ -185,6 +197,7 @@ export function PortfolioScene({
       },
     });
     return () => {
+      cancelled = true;
       camera.stop();
       progress.stop();
     };
@@ -229,25 +242,25 @@ export function PortfolioScene({
       className="fixed inset-x-0 top-0 isolate h-dvh overflow-clip"
     >
       {!section && <h1 className="sr-only">Benas Unguraitis — BitBeans</h1>}
-      {!geometry &&
-        (initialSection ? (
-          <section className="panel-content relative z-20 max-h-full overflow-y-auto bg-black text-white">
-            <Link href="/">Back to homepage</Link>
-            <h1>{initialSection}</h1>
-            <SectionContent section={initialSection} />
-          </section>
-        ) : (
-          <nav
-            aria-label="Portfolio"
-            className="sr-only focus-within:not-sr-only"
-          >
-            {sections.map((entry) => (
-              <a key={entry} href={sectionPath(entry)}>
-                {entry}
-              </a>
-            ))}
-          </nav>
-        ))}
+      {!geometry && initialSection && (
+        <section className="panel-content relative z-20 max-h-full overflow-y-auto bg-black text-white">
+          <Link href="/">Back to homepage</Link>
+          <h1>{initialSection}</h1>
+          <SectionContent section={initialSection} />
+        </section>
+      )}
+      {!initialSection && !section && !labelsReady && (
+        <nav
+          aria-label="Portfolio"
+          className="sr-only focus-within:not-sr-only"
+        >
+          {sections.map((entry) => (
+            <a key={entry} href={sectionPath(entry)}>
+              {entry}
+            </a>
+          ))}
+        </nav>
+      )}
       <motion.div
         className="absolute inset-0"
         style={{ x: cameraX, y: cameraY }}
@@ -259,13 +272,18 @@ export function PortfolioScene({
           <CircuitBackdrop
             size={backdropSize}
             flight={section ? geometry : null}
-            hoveredSection={section ? null : hoveredSection}
-            interactive={!section}
+            hoveredSection={
+              enableHomeBackdropHighlights && !section ? hoveredSection : null
+            }
+            interactive={enableHomeBackdropHighlights && !section}
           />
           <AnimatedLogo
             progress={progress}
             geometry={geometry}
-            onHoverSection={setHoveredSection}
+            onLabelsReady={() => setLabelsReady(true)}
+            onHoverSection={
+              enableHomeBackdropHighlights ? setHoveredSection : undefined
+            }
             onNavigate={(next, link) => {
               if (section) return;
               setHoveredSection(null);

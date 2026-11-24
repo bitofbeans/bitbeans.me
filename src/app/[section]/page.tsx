@@ -6,6 +6,8 @@ import {
   sectionMeta,
   sectionPath,
   sections,
+  sectionTitle,
+  siteTitle,
 } from "../sections";
 
 export const dynamicParams = false;
@@ -23,18 +25,22 @@ export async function generateMetadata({
   const section = sectionFromPath("/" + slug);
   if (!section) return {};
   const { title, description } = sectionMeta[section];
+  const fullTitle = sectionTitle(section);
   const path = sectionPath(section);
   return {
     title,
     description,
     alternates: { canonical: path },
     openGraph: {
-      title,
+      type: "website",
+      siteName: siteTitle,
+      title: fullTitle,
       description,
       url: path,
     },
     twitter: {
-      title,
+      card: "summary_large_image",
+      title: fullTitle,
       description,
     },
   };

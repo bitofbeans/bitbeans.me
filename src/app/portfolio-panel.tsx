@@ -28,7 +28,26 @@ const art = [
   ["SLGiveaway.png", "Giveaway icon", 1502, 1502],
 ] as const;
 
-const projects = [
+type Project = {
+  name: string;
+  description: string;
+  href: string;
+  action: string;
+  image: string;
+  alt: string;
+  width: number;
+  height: number;
+  embed?: {
+    showLabel: string;
+    hideLabel: string;
+    title: string;
+    src: string;
+    width: number;
+    height: number;
+  };
+};
+
+const projects: readonly Project[] = [
   {
     name: "MarMap",
     description:
@@ -59,6 +78,14 @@ const projects = [
     alt: "Teleport artwork with two green characters bursting through the screen",
     width: 2001,
     height: 1501,
+    embed: {
+      showLabel: "itch.io embed",
+      hideLabel: "Hide itch.io",
+      title: "TELEPORT by BitBeans on itch.io",
+      src: ITCH_EMBED_URL,
+      width: 552,
+      height: 167,
+    },
   },
 ];
 
@@ -71,29 +98,66 @@ function DesignLightbox({
   onClose: () => void;
   onChange: (next: number) => void;
 }) {
+  const frameRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const swipeStart = useRef<number | null>(null);
+  const onCloseRef = useRef(onClose);
   const item = art[index]!;
   const [file, name, width, height] = item;
   const total = art.length;
 
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Focus the close button once on mount and make background <main> inert.
+  useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
+    const main = document.querySelector("main");
+    const prevInert = main?.inert ?? false;
+    if (main) main.inert = true;
+    return () => {
+      if (main) main.inert = prevInert;
+    };
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
       } else if (event.key === "ArrowLeft") {
         event.preventDefault();
         onChange((index - 1 + total) % total);
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
         onChange((index + 1) % total);
+      } else if (event.key === "Tab") {
+        const frame = frameRef.current;
+        if (!frame) return;
+        const focusable = Array.from(
+          frame.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        const active = document.activeElement;
+        if (event.shiftKey) {
+          if (active === first || !frame.contains(active)) {
+            event.preventDefault();
+            last.focus();
+          }
+        } else if (active === last || !frame.contains(active)) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [index, total, onClose, onChange]);
+  }, [index, total, onChange]);
 
   if (typeof document === "undefined") return null;
 
@@ -107,7 +171,7 @@ function DesignLightbox({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="design-lightbox-frame">
+      <div ref={frameRef} className="design-lightbox-frame">
         <div className="design-lightbox-bar">
           <span className="design-lightbox-counter">
             {index + 1} / {total}
@@ -185,19 +249,31 @@ function DesignLightbox({
 
 function BookmarkletLink() {
   const linkRef = useRef<HTMLAnchorElement>(null);
+  const copyTimerRef = useRef<number | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     // Attach the javascript: href on the DOM node so dragging to the bookmarks
     // bar works without triggering React's javascript: URL warning.
     linkRef.current?.setAttribute("href", BOOKMARKLET_HREF);
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
   }, []);
 
   async function copyBookmarklet() {
     try {
       await navigator.clipboard.writeText(BOOKMARKLET_HREF);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopied(false);
+      }, 1800);
     } catch {
       setCopied(false);
     }
@@ -224,6 +300,9 @@ function BookmarkletLink() {
       >
         {copied ? "Copied!" : "Copy script"}
       </button>
+      <span className="sr-only" role="status" aria-live="polite">
+        {copied ? "Bookmarklet script copied to clipboard" : ""}
+      </span>
       <a
         href="https://github.com/bitofbeans/js2048Game"
         target="_blank"
@@ -235,12 +314,16 @@ function BookmarkletLink() {
   );
 }
 
-function Work() {
+function Work({ docked = true }: { docked?: boolean }) {
   const [gallery, setGallery] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [showItchEmbed, setShowItchEmbed] = useState(false);
+  const [openEmbeds, setOpenEmbeds] = useState<Record<string, boolean>>({});
   const [showMixPlayer, setShowMixPlayer] = useState(false);
   const triggerRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!docked) setLightboxIndex(null);
+  }, [docked]);
 
   function closeLightbox() {
     const returnIndex = lightboxIndex;
@@ -277,17 +360,16 @@ function Work() {
         <>
           <div className="design-grid">
             {art.map(([file, name, width, height], index) => (
-              <button
-                key={file}
-                ref={(el) => {
-                  triggerRefs.current[index] = el;
-                }}
-                type="button"
-                className="design-card"
-                onClick={() => setLightboxIndex(index)}
-                aria-label={`View ${name}`}
-              >
-                <figure>
+              <figure key={file} className="design-card">
+                <button
+                  ref={(el) => {
+                    triggerRefs.current[index] = el;
+                  }}
+                  type="button"
+                  className="design-card-trigger"
+                  onClick={() => setLightboxIndex(index)}
+                  aria-label={`View ${name}`}
+                >
                   <Image
                     src={"/images/" + file}
                     width={width}
@@ -295,9 +377,9 @@ function Work() {
                     sizes="(max-width: 650px) 85vw, 32vw"
                     alt={name}
                   />
-                  <figcaption>{name}</figcaption>
-                </figure>
-              </button>
+                </button>
+                <figcaption>{name}</figcaption>
+              </figure>
             ))}
           </div>
           {lightboxIndex !== null && (
@@ -310,54 +392,64 @@ function Work() {
         </>
       ) : (
         <>
-          {projects.map((project) => (
-            <div className="project-block" key={project.href}>
-              <article className="project-feature">
-                <Image
-                  src={project.image}
-                  width={project.width}
-                  height={project.height}
-                  sizes="(max-width: 650px) 80vw, 45vw"
-                  alt={project.alt}
-                />
-                <div>
-                  <h2>{project.name}</h2>
-                  <p>{project.description}</p>
-                  <div className="project-actions">
-                    <a
-                      className="pixel-action"
-                      href={project.href}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {project.action} ↗
-                    </a>
-                    {project.name === "Teleport" && (
-                      <button
-                        type="button"
-                        className="subtle-action relative z-10"
-                        aria-expanded={showItchEmbed}
-                        onClick={() => setShowItchEmbed((open) => !open)}
-                      >
-                        {showItchEmbed ? "Hide itch.io" : "itch.io embed"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </article>
-              {project.name === "Teleport" && showItchEmbed && (
-                <div className="inline-embed">
-                  <iframe
-                    title="TELEPORT by BitBeans on itch.io"
-                    src={ITCH_EMBED_URL}
-                    width="552"
-                    height="167"
-                    loading="lazy"
+          {projects.map((project) => {
+            const embedOpen = Boolean(openEmbeds[project.href]);
+            return (
+              <div className="project-block" key={project.href}>
+                <article className="project-feature">
+                  <Image
+                    src={project.image}
+                    width={project.width}
+                    height={project.height}
+                    sizes="(max-width: 650px) 80vw, 45vw"
+                    alt={project.alt}
                   />
-                </div>
-              )}
-            </div>
-          ))}
+                  <div>
+                    <h2>{project.name}</h2>
+                    <p>{project.description}</p>
+                    <div className="project-actions">
+                      <a
+                        className="pixel-action"
+                        href={project.href}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {project.action} ↗
+                      </a>
+                      {project.embed && (
+                        <button
+                          type="button"
+                          className="subtle-action relative z-10"
+                          aria-expanded={embedOpen}
+                          onClick={() =>
+                            setOpenEmbeds((prev) => ({
+                              ...prev,
+                              [project.href]: !prev[project.href],
+                            }))
+                          }
+                        >
+                          {embedOpen
+                            ? project.embed.hideLabel
+                            : project.embed.showLabel}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+                {project.embed && embedOpen && (
+                  <div className="inline-embed">
+                    <iframe
+                      title={project.embed.title}
+                      src={project.embed.src}
+                      width={project.embed.width}
+                      height={project.embed.height}
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <article className="mix-row">
             <div className="mix-header">
               <h2>DJ Mix</h2>
@@ -637,13 +729,19 @@ function Frame({ g }: { g: SceneGeometry }) {
   );
 }
 
-export function SectionContent({ section }: { section: Section }) {
+export function SectionContent({
+  section,
+  docked = true,
+}: {
+  section: Section;
+  docked?: boolean;
+}) {
   return section === "Work" ? (
-    <Work />
+    <Work docked={docked} />
   ) : section === "About" ? (
     <About />
   ) : (
-    <SnakeGame />
+    <SnakeGame active={docked} />
   );
 }
 
@@ -683,7 +781,9 @@ export function PortfolioPanel({
         {docked && <BackLabel />}
       </button>
       <div
-        className="panel-scroll"
+        className={
+          "panel-scroll" + (section === "Game" ? " panel-scroll-game" : "")
+        }
         style={{
           left: g.left + g.wire / 2 + 4,
           right: g.left + g.wire / 2 + 4,
@@ -691,11 +791,15 @@ export function PortfolioPanel({
           bottom: g.top + g.wire / 2 + 4,
         }}
       >
-        <div className="panel-content">
+        <div
+          className={
+            "panel-content" + (section === "Game" ? " panel-content-game" : "")
+          }
+        >
           <h1 ref={heading} tabIndex={-1}>
             {section}
           </h1>
-          <SectionContent section={section} />
+          <SectionContent section={section} docked={docked} />
         </div>
       </div>
     </section>

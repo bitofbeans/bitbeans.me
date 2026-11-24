@@ -7,6 +7,7 @@ import {
   siteTitle,
 } from "../sections";
 
+export const dynamicParams = false;
 export const size = ogSize;
 export const contentType = ogContentType;
 export const alt = `${siteTitle} — BitBeans`;

@@ -117,14 +117,20 @@ export function AnimatedLogo({
   geometry,
   onNavigate,
   onHoverSection,
+  onLabelsReady,
 }: {
   progress: MotionValue<number>;
   geometry: SceneGeometry | null;
   onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
   onHoverSection?: (section: Section | null) => void;
+  onLabelsReady?: () => void;
 }) {
   const [showLabels, setShowLabels] = useState(false);
   const [skippedIntro, setSkippedIntro] = useState(false);
+  const onLabelsReadyRef = useRef(onLabelsReady);
+  useEffect(() => {
+    onLabelsReadyRef.current = onLabelsReady;
+  }, [onLabelsReady]);
   const logoRef = useRef<HTMLDivElement>(null);
   const upperLeft = useMotionValue(initialExtension);
   const upperRight = useMotionValue(initialExtension);
@@ -182,11 +188,14 @@ export function AnimatedLogo({
     if (reduceMotion || shouldSkipIntro()) {
       setSkippedIntro(true);
       setShowLabels(true);
+      onLabelsReadyRef.current?.();
       branches.forEach(({ extension }) => extension.jump(0));
       return;
     }
 
+    let cancelled = false;
     function retractBranches() {
+      if (cancelled) return;
       const width = logoRef.current?.getBoundingClientRect().width;
       if (!width) return;
 
@@ -209,13 +218,18 @@ export function AnimatedLogo({
           delay: delayMs / 1000,
           ease: travelEase,
           onComplete() {
+            if (cancelled) return;
             void animate(extension, 0, {
               ...logoSnapSpring,
               velocity,
               restSpeed: 3,
               restDelta: 0.35,
               onComplete() {
-                if (--remaining === 0) setShowLabels(true);
+                if (cancelled) return;
+                if (--remaining === 0) {
+                  setShowLabels(true);
+                  onLabelsReadyRef.current?.();
+                }
               },
             });
           },
@@ -227,6 +241,7 @@ export function AnimatedLogo({
     const frameId = requestAnimationFrame(retractBranches);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(frameId);
       branches.forEach(({ extension }) => extension.stop());
     };
