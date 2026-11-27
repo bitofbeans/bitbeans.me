@@ -1,8 +1,9 @@
 import "../styles/globals.css";
 
+import { GeistPixelLine, GeistPixelSquare } from "geist/font/pixel";
 import { type Metadata } from "next";
 import localFont from "next/font/local";
-import { siteDescription, siteTitle, siteUrl } from "./sections";
+import { siteDescription, siteTitle, siteUrl } from "~/lib/sections";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -39,7 +40,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={pixelifySans.variable}>
+    <html
+      lang="en"
+      className={`${pixelifySans.variable} ${GeistPixelSquare.variable} ${GeistPixelLine.variable}`}
+    >
       <body className="bg-black">{children}</body>
     </html>
   );

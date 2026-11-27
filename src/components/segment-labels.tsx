@@ -1,10 +1,10 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
+import { useReducedMotionConfig } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
+import { sectionPath, sections, type Section } from "~/lib/sections";
 
-import { sectionPath, sections, type Section } from "./sections";
-export type { Section } from "./sections";
+export type { Section } from "~/lib/sections";
 
 // The wide W and m have a center post. The k has two diagonal segments.
 const glyphs = {
@@ -14,10 +14,14 @@ const glyphs = {
   c: { width: 12, lit: "deg" },
   k: { width: 12, lit: "efjk" },
   A: { width: 12, lit: "abcefg" },
+  B: { width: 12, lit: "cdefg" },
   b: { width: 12, lit: "cdefg" },
+  l: { width: 8, lit: "ef" },
   u: { width: 12, lit: "cde" },
   t: { width: 9, lit: "efg" },
+  p: { width: 12, lit: "abefg" },
   G: { width: 12, lit: "acdefh" },
+  g: { width: 12, lit: "abcdfg" },
   a: { width: 12, lit: "abcefg" },
   m: { width: 21, lit: "cegi" },
   e: { width: 12, lit: "adefg" },
@@ -87,9 +91,12 @@ function makeWord(word: string) {
   }
   return cells;
 }
+
 const words = sections.map(makeWord);
 const back = makeWord("back");
 const backWords = [back];
+const top = makeWord("top");
+const topWords = [top];
 
 function useSegmentMasks(labelWords: typeof words, reduceMotion: boolean) {
   const [masks, setMasks] = useState<number[][] | null>([]);
@@ -146,7 +153,7 @@ export function SegmentDigits({
   flash?: boolean;
   className?: string;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
   const word = useMemo(() => makeWord(value), [value]);
   const flashWords = useMemo(() => [word], [word]);
   const masks = useSegmentMasks(flashWords, !flash || Boolean(reduceMotion));
@@ -175,13 +182,28 @@ export function SegmentDigits({
 }
 
 export function BackLabel() {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
   const masks = useSegmentMasks(backWords, Boolean(reduceMotion));
   return (
     <svg aria-hidden="true" viewBox="-2 -2 66 29" width="58" height="25">
       <g transform="translate(2 0) skewX(-5)">
         <WordSegments
           word={back}
+          masks={masks === null ? null : (masks[0] ?? [])}
+        />
+      </g>
+    </svg>
+  );
+}
+
+export function TopLabel() {
+  const reduceMotion = useReducedMotionConfig();
+  const masks = useSegmentMasks(topWords, Boolean(reduceMotion));
+  return (
+    <svg aria-hidden="true" viewBox="-2 -2 48 29" width="42" height="25">
+      <g transform="translate(2 0) skewX(-5)">
+        <WordSegments
+          word={top}
           masks={masks === null ? null : (masks[0] ?? [])}
         />
       </g>

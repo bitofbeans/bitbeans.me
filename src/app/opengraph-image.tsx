@@ -1,5 +1,5 @@
-import { ogContentType, ogSize, renderOgCard } from "./og-card";
-import { siteDescription, siteTitle } from "./sections";
+import { ogContentType, ogSize, renderOgCard } from "~/components/og-card";
+import { siteDescription, siteTitle } from "~/lib/sections";
 
 export const size = ogSize;
 export const contentType = ogContentType;

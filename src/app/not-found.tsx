@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import { NotFoundScene } from "./not-found-scene";
+import { NotFoundScene } from "~/components/not-found-scene";
 
 export const metadata: Metadata = {
   title: "404",

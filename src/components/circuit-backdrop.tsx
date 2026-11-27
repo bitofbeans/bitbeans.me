@@ -4,7 +4,7 @@ import {
   animate,
   motion,
   useMotionValue,
-  useReducedMotion,
+  useReducedMotionConfig,
   useTransform,
 } from "framer-motion";
 import {
@@ -15,21 +15,22 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { logoBranchStrokeWidth } from "./animated-logo";
-import type { SceneGeometry } from "./portfolio-scene";
-import { shouldSkipIntro, type Section } from "./sections";
+import {
+  desktopLaneSpacing,
+  traceMetrics,
+  type SceneGeometry,
+} from "~/lib/scene-geometry";
+import { shouldSkipIntro, type Section } from "~/lib/sections";
 import { StaticTrace } from "./static-trace";
 
 type Size = { width: number; height: number; logoWidth: number };
 type Point = { x: number; y: number };
 
-const desktopLaneSpacing = 82;
 const firstEntryDelay = 0.52;
 const entryStagger = 0.01;
-const blueOutlineScale = 0.7;
 const drawDuration = 0.42;
 const drawEase = [0.4, 0, 0.25, 1] as const;
+
 // Coordinates on a 100 × 100 board. Each route starts with its entry position
 // along the edge. Subsequent coordinates move alternately in Y and X for
 // top/bottom entries, or X and Y for left/right entries.
@@ -87,29 +88,6 @@ const boardRoutes = {
     [8, 7],
   ],
 } as const;
-
-export function traceMetrics(width: number, height: number, logoWidth: number) {
-  const laneSpacing = Math.min(desktopLaneSpacing, width / 9, height / 6);
-  const compactness = 1 - laneSpacing / desktopLaneSpacing;
-  const baseStrokeWidth =
-    (logoBranchStrokeWidth(logoWidth) / 2) * (1 - 0.4 * compactness);
-  const innerStrokeWidth = baseStrokeWidth / 2;
-  const strokeWidth = innerStrokeWidth * (1 + blueOutlineScale);
-  const crossingGap = strokeWidth / 4;
-  const nodeInnerRadius = baseStrokeWidth * 0.525;
-  const nodeOuterRadius =
-    nodeInnerRadius + (baseStrokeWidth / 4) * blueOutlineScale;
-  const nodeClearRadius = nodeOuterRadius + strokeWidth / 8;
-  return {
-    compactness,
-    strokeWidth,
-    innerStrokeWidth,
-    crossingGap,
-    nodeInnerRadius,
-    nodeOuterRadius,
-    nodeClearRadius,
-  };
-}
 
 function traceLayout({ width, height, logoWidth }: Size) {
   const {
@@ -354,7 +332,7 @@ function CircuitTrace({
     return () => travel.stop();
   }, [travel, settleImmediately]);
 
-  // Charge/discharge smoothly when hovering Work / About / Game.
+  // Charge/discharge smoothly when hovering Work / About / Blog.
   useEffect(() => {
     chargedRef.current = charged;
     if (!charged && !wasChargedRef.current) return;
@@ -564,10 +542,93 @@ function CircuitTrace({
 function FlightConnections({
   g,
   layout,
+  axis,
 }: {
   g: SceneGeometry;
   layout: Layout;
+  axis: "right" | "down";
 }) {
+  if (axis === "down") {
+    const verticalGap = g.blogDistance - g.h;
+    const overscan = layout.strokeWidth * 3;
+    const farLeft = Math.min(0, g.blogCameraX) - overscan;
+    const farRight = g.w + Math.max(0, g.blogCameraX) + overscan;
+    const spineClearHalf = g.wire * 2.2 + layout.nodeOuterRadius;
+    const spineX = g.bottomTipX;
+
+    return (
+      <svg
+        aria-hidden="true"
+        width={g.w}
+        height={g.h}
+        className="absolute inset-0 overflow-visible"
+        fill="none"
+        strokeLinejoin="round"
+      >
+        {/* Continue bottom and right homepage edge traces cleanly out of the vertical corridor. */}
+        {layout.traces.map(({ side, index, border, key }) => {
+          if (side !== "bottom" && side !== "right") return null;
+          const { x, y } = border;
+          if (side === "right") {
+            const path = `M${x - 1} ${y}H${farRight}`;
+            return <StaticTrace key={key} d={path} metrics={layout} />;
+          }
+          // Bottom traces route outward to the left or right edge, keeping the center white wire clear.
+          const goRight = x >= spineX;
+          const lane = (index * 5) % 11;
+          const turnY = g.h + verticalGap * (0.12 + lane * 0.068);
+          const edgeX = goRight ? farRight : farLeft;
+          const nearSpine = Math.abs(x - spineX) < spineClearHalf;
+          if (nearSpine) {
+            const jogY = g.h + layout.strokeWidth * (1.4 + (index % 3) * 1.4);
+            const outX = goRight
+              ? spineX + spineClearHalf + g.w * (0.06 + (index % 3) * 0.05)
+              : spineX - spineClearHalf - g.w * (0.06 + (index % 3) * 0.05);
+            const path = `M${x} ${y - 1}V${jogY}H${outX}V${turnY}H${edgeX}`;
+            return <StaticTrace key={key} d={path} metrics={layout} />;
+          }
+          const path = `M${x} ${y - 1}V${turnY}H${edgeX}`;
+          return <StaticTrace key={key} d={path} metrics={layout} />;
+        })}
+        {/* Side-entering blue traces framing the vertical flight gap with longer vertical runs. */}
+        {(
+          [
+            [-1, 0.12, 0.12, 0.44],
+            [-1, 0.24, 0.21, 0.62],
+            [-1, 0.56, 0.16, 0.9],
+            [-1, 0.78, 0.29, 0.48],
+            [1, 0.14, 0.13, 0.5],
+            [1, 0.28, 0.22, 0.66],
+            [1, 0.52, 0.17, 0.88],
+            [1, 0.82, 0.3, 0.46],
+          ] as const
+        ).map(([side, startFrac, reachFrac, endFrac], i) => {
+          const isRight = side === 1;
+          const startX = isRight ? farRight : farLeft;
+          const startY = g.h + verticalGap * startFrac;
+          const maxReach = Math.max(
+            layout.nodeOuterRadius * 3,
+            (isRight ? farRight - spineX : spineX - farLeft) -
+              spineClearHalf -
+              layout.nodeOuterRadius,
+          );
+          const dx = Math.min(g.w * reachFrac, maxReach);
+          const endX = isRight ? farRight - dx : farLeft + dx;
+          const endY = g.h + verticalGap * endFrac;
+          const d = `M${startX} ${startY}H${endX}V${endY}`;
+          return (
+            <StaticTrace
+              key={`gap-${i}`}
+              d={d}
+              metrics={layout}
+              tip={[endX, endY]}
+            />
+          );
+        })}
+      </svg>
+    );
+  }
+
   const gap = g.distance - g.w;
   const farBottom = g.h + Math.max(0, g.cameraY) + 2 * layout.strokeWidth;
   const farTop = Math.min(0, g.cameraY) - 2 * layout.strokeWidth;
@@ -628,15 +689,17 @@ function FlightConnections({
 export function CircuitBackdrop({
   size,
   flight,
+  flightAxis = "right",
   hoveredSection = null,
   interactive = false,
 }: {
   size: Size | null;
   flight: SceneGeometry | null;
+  flightAxis?: "right" | "down";
   hoveredSection?: Section | null;
   interactive?: boolean;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
   const backdropId = useId();
   const clearanceId = `${backdropId}-clearance`;
   const [skipIntro] = useState(
@@ -652,13 +715,13 @@ export function CircuitBackdrop({
     else pulseHandlers.current.delete(key);
   }, []);
 
-  // Determine which traces are closest to the hovered logo link (Work/About/Game).
+  // Determine which traces are closest to the hovered logo link (Work/About/Blog).
   const chargedKeys = useMemo(() => {
     if (!hoveredSection || !size || !layout) return new Set<string>();
     const offsetY =
       hoveredSection === "Work"
         ? -0.25 * size.logoWidth
-        : hoveredSection === "Game"
+        : hoveredSection === "Blog"
           ? 0.25 * size.logoWidth
           : 0;
     const anchor: Point = {
@@ -720,7 +783,9 @@ export function CircuitBackdrop({
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 -z-10 text-[#1d3044]"
     >
-      {flight && layout && <FlightConnections g={flight} layout={layout} />}
+      {flight && layout && (
+        <FlightConnections g={flight} layout={layout} axis={flightAxis} />
+      )}
       {size && layout && (
         <svg
           viewBox={`0 0 ${size.width} ${size.height}`}

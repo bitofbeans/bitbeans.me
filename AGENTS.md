@@ -10,15 +10,16 @@
 - The camera follows the rightmost white node to the green frame. Preserve wire widths throughout the flight, feed all four corners with blue traces, and keep cut ends offscreen.
 - Match the white node’s flight to the logo fly-in: fast travel with a spring snap. Ease the camera independently and more slowly, without overshoot, in both directions. Dock only after both settle.
 - Keep the white node’s full flight inside the SVG viewport for Safari. Draw black inner lines over node outlines so the channels stay connected like the logo.
-- Work, About, Game, and Back share the segmented startup flash. Back flashes on docking. With reduced motion, show settled states immediately.
+- Work, About, Blog, Back, and Top share the segmented startup flash. Back and Top flash on docking. With reduced motion, show settled states immediately.
 - Give Back the same hover and keyboard-focus highlight as the logo links.
 
 ## Background traces
 
 - Route all four edges with varied right-angle bends, spaced parallel runs, and small gaps at crossings. Vary how far nodes reach inward and keep each full node clear of the logo, with extra clearance on mobile.
 - Start offscreen about one-third across the top and sweep clockwise by each trace’s actual entry point. Each full-size node leads its line around every bend and glides to a stop.
-- In `src/app/circuit-backdrop.tsx`, tune `firstEntryDelay`, `entryStagger`, and `drawDuration` independently. Adjust `blueOutlineScale` to change blue thickness while preserving the black centers.
+- In `src/components/circuit-backdrop.tsx`, tune `firstEntryDelay`, `entryStagger`, and `drawDuration` independently. Adjust `blueOutlineScale` in `src/lib/scene-geometry.ts` to change blue thickness while preserving the black centers.
 
-## Portfolio content
+## Portfolio and blog content
 
-- Edit projects and designs in `src/app/portfolio-panel.tsx`. Project order follows the `projects` array. Store artwork in `public/images/` and include its intrinsic dimensions and descriptive alt text for project previews.
+- Edit projects and designs in `src/components/work/portfolio-data.ts`. Project order follows the `projects` array. Store artwork in `public/images/` and include its intrinsic dimensions and descriptive alt text for project previews.
+- Add or edit blog posts as Markdown files in `content/blog/`.

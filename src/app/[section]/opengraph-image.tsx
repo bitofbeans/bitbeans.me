@@ -1,11 +1,11 @@
-import { ogContentType, ogSize, renderOgCard } from "../og-card";
+import { ogContentType, ogSize, renderOgCard } from "~/components/og-card";
 import {
   sectionFromPath,
   sectionMeta,
   sectionPath,
   sections,
   siteTitle,
-} from "../sections";
+} from "~/lib/sections";
 
 export const dynamicParams = false;
 export const size = ogSize;

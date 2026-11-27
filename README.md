@@ -12,10 +12,17 @@ npm run format:check
 
 ## Structure
 
-- `src/app/portfolio-scene.tsx` — Scene layout, camera flight, URL/history sync, and focus management
-- `src/app/animated-logo.tsx` — Animated SVG logo with retracting branches and crossbar flight
-- `src/app/circuit-backdrop.tsx` — Procedural circuit traces and flight connectors
-- `src/app/segment-labels.tsx` — 7-segment display navigation labels (`Work`, `About`, `Game`, `Back`)
-- `src/app/portfolio-panel.tsx` — Docked green panel frame and section content (projects, designs, about, game)
-- `src/app/sections.ts` — Routes, section metadata, and URL/hash helpers
+- `content/blog/` — Markdown blog posts (`*.md` with YAML frontmatter), sorted newest-first
+- `src/app/` — Next.js App Router routes, metadata, OG images, sitemap, and robots
+- `src/lib/` — Shared non-UI modules (`sections.ts`, `scene-geometry.ts`, `blog.ts`, `blog-types.ts`)
+- `src/components/` — Scene and UI components:
+  - `portfolio-scene.tsx` — Scene orchestrator, camera flight, URL/history sync, and focus management
+  - `animated-logo.tsx` — Animated SVG logo with retracting branches and horizontal/vertical flight
+  - `circuit-backdrop.tsx` — Procedural circuit traces and flight connectors
+  - `scene-frame.tsx` — Docked green panel frame and perimeter feeder traces
+  - `segment-labels.tsx` — 7-segment display labels (`Work`, `About`, `Blog`, `Back`, `Top`)
+  - `modal-dialog.tsx` — Shared accessible focus-trapped modal
+  - `work/` — Work projects, designs gallery, lightbox, bookmarklet, and `portfolio-data.ts`
+  - `about/` — About section
+  - `blog/` — Vertical circuit tree (`blog-panel.tsx`) and Markdown reader modal (`blog-post-modal.tsx`)
 - `public/images/` — Project preview and design artwork

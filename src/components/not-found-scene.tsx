@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
-import { logoBranchStrokeWidth } from "./animated-logo";
+import { artboardSize, logoBranchStrokeWidth } from "~/lib/scene-geometry";
 import { CircuitBackdrop } from "./circuit-backdrop";
 import { BackLabel, SegmentDigits } from "./segment-labels";
 
-const artboardSize = 1000;
 const logoWire = logoBranchStrokeWidth(artboardSize);
 const nodeRadius = (19 / 64) * logoWire;
 const nodeOuter = nodeRadius + logoWire / 2;
@@ -101,11 +100,7 @@ export function NotFoundScene() {
             />
           </g>
         </svg>
-        <Link
-          href="/"
-          className="not-found-back"
-          aria-label="Back to homepage"
-        >
+        <Link href="/" className="not-found-back" aria-label="Back to homepage">
           <BackLabel />
         </Link>
       </section>

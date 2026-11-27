@@ -3,7 +3,7 @@ export const siteTitle = "Benas Unguraitis";
 export const siteDescription =
   "Personal website of Benas Unguraitis (BitBeans) — games, designs, and music.";
 
-export const sections = ["Work", "About", "Game"] as const;
+export const sections = ["Work", "About", "Blog"] as const;
 export type Section = (typeof sections)[number];
 
 export const sectionMeta: Record<
@@ -19,9 +19,9 @@ export const sectionMeta: Record<
     title: "About",
     description: "About Benas Unguraitis (BitBeans) and how to get in touch.",
   },
-  Game: {
-    title: "Game",
-    description: "Circuit Snake — a mini game on bitbeans.me.",
+  Blog: {
+    title: "Blog",
+    description: "Notes, devlogs, and posts by Benas Unguraitis.",
   },
 };
 
@@ -29,7 +29,22 @@ export function sectionPath(section: Section) {
   return "/" + section.toLowerCase();
 }
 
+export function blogPostPath(slug: string) {
+  return `/blog/${encodeURIComponent(slug)}`;
+}
+
+export function blogSlugFromPath(pathname: string): string | null {
+  const match = /^\/blog\/([^/]+)\/?$/.exec(pathname);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
 export function sectionFromPath(pathname: string): Section | null {
+  if (blogSlugFromPath(pathname) !== null) return "Blog";
   return sections.find((entry) => sectionPath(entry) === pathname) ?? null;
 }
 
@@ -52,6 +67,10 @@ export function sectionFromLocation(
 
 export function sectionTitle(section: Section | null) {
   return section ? `${sectionMeta[section].title} · ${siteTitle}` : siteTitle;
+}
+
+export function blogPostTitle(title: string) {
+  return `${title} · Blog · ${siteTitle}`;
 }
 
 let visitedSection = false;

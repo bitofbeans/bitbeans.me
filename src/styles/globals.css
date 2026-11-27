@@ -4,6 +4,8 @@ html,
 body {
   overflow: hidden;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .section-link {
@@ -86,7 +88,7 @@ body {
   letter-spacing: -0.045em;
 }
 .panel-content h1:focus,
-.snake-overlay:focus {
+.blog-canvas h1:focus {
   outline: none;
 }
 .panel-content h2 {
@@ -373,6 +375,11 @@ body {
   outline-offset: 3px;
 }
 
+.destination[aria-label="About"],
+.destination[aria-label="About"] .panel-content,
+.about-copy {
+  font-family: var(--font-geist-pixel-square), monospace;
+}
 .about-copy {
   max-width: 44ch;
 }
@@ -380,242 +387,283 @@ body {
   margin-top: 1.2em;
 }
 
-/* Game panel: fits inside the frame with no scrolling, centered */
-.panel-scroll-game {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.panel-content-game {
-  flex: 1 1 auto;
-  width: 100%;
-  min-height: 0;
-  max-width: none;
-  margin: 0;
-  padding: clamp(6px, 1.2dvh, 14px) clamp(8px, 2vw, 24px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.panel-content-game h1 {
-  font-size: clamp(22px, 3.2dvh, 36px);
-  line-height: 1;
-  margin: 0 0 clamp(6px, 1dvh, 10px);
-  text-align: center;
-  flex-shrink: 0;
-}
-
-/* Snake game. Heights of the HUD and footer never depend on the board size,
-   so measuring the leftover slot can't loop. */
-.snake-game {
-  flex: 1 1 0;
-  min-height: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(6px, 1.2dvh, 12px);
-}
-.snake-hud {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1em;
-  width: var(--stage-w, 100%);
-  min-width: max-content;
-  height: 32px;
-  flex-shrink: 0;
-}
-.snake-hud-stats,
-.snake-hud-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-.snake-hud-stats {
-  gap: 1em;
-}
-.snake-hud-actions {
-  gap: 0.4em;
-}
-.snake-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-}
-.snake-stat-label {
-  font-size: 0.7em;
-  color: #a5b5ac;
-  letter-spacing: 0.08em;
-}
-.snake-stat-digits {
-  display: inline-flex;
-}
-.snake-stat-pop {
-  animation: snakeStatPop 140ms steps(1, end);
-}
-@keyframes snakeStatPop {
-  from,
-  to {
-    transform: translateY(-3px);
-  }
-}
-.snake-tool-btn {
-  padding: 0.1em 0.55em;
-  font-size: 0.72em;
-  line-height: 1.3;
-  color: #a5b5ac;
-  background: #000;
-  border: 2px solid #21372c;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.snake-tool-btn:hover:not(:disabled) {
-  color: #f0f3ed;
-  border-color: #2bbc7d;
-}
-.snake-tool-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.snake-tool-btn[aria-pressed="false"] {
-  color: #5d6b63;
-  text-decoration: line-through;
-}
-.snake-stage-slot {
-  flex: 1 1 0;
-  min-height: 0;
-  width: 100%;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-.snake-stage {
-  position: relative;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.snake-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-}
-/* Pixel dither over the board (inside the 3-pixel frame). */
-.snake-overlay {
+/* Blog vertical circuit tree */
+.blog-destination {
   position: absolute;
-  inset: calc(var(--px, 2px) * 3);
-  display: grid;
-  place-items: center;
-  padding: 8px;
-  background-image: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%);
-  background-size: calc(var(--px, 2px) * 2) calc(var(--px, 2px) * 2);
+  z-index: 20;
+  isolation: isolate;
+  font-family: var(--font-pixelify-sans), monospace;
+  color: #ffffff;
 }
-.snake-overlay-card {
+.blog-destination :is(button, a):focus-visible {
+  outline: 2px dashed #ffbc42;
+  outline-offset: 3px;
+}
+.blog-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  overscroll-behavior: contain;
+  background: transparent;
+  scrollbar-color: #365242 black;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable both-edges;
+}
+.blog-destination.powered .blog-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.blog-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+}
+.blog-dock-bg {
+  position: absolute;
+  inset: 0;
+  background: #000000;
+  opacity: 0;
+  pointer-events: none;
+}
+.blog-dock-spine {
+  opacity: 0;
+}
+.blog-destination.powered .blog-dock-bg,
+.blog-destination.powered .blog-dock-spine {
+  opacity: 1;
+}
+.blog-tree-svg {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+.blog-back {
+  padding: 6px 8px;
+}
+.blog-top {
+  transform: translateX(-50%);
+  padding: 8px 12px;
+}
+.blog-node-btn {
+  position: absolute;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+}
+.blog-node-right {
+  justify-content: flex-start;
+  text-align: left;
+}
+.blog-node-left {
+  justify-content: flex-end;
+  text-align: right;
+}
+.blog-node-text {
   display: flex;
   flex-direction: column;
+  gap: 5px;
+}
+.blog-node-right .blog-node-text {
+  align-items: flex-start;
+}
+.blog-node-left .blog-node-text {
+  align-items: flex-end;
+}
+.blog-node-title {
+  font-family: var(--font-geist-pixel-line), monospace;
+  font-size: clamp(20px, 2.3vw, 29px);
+  font-weight: 400;
+  letter-spacing: -0.08em;
+  line-height: 0.96;
+  text-transform: lowercase;
+  color: #ffffff;
+  transition: color 140ms ease-out;
+}
+.blog-node-date {
+  display: inline-flex;
   align-items: center;
-  gap: 0.35em;
-  max-width: 90%;
-  padding: 0.7em 1.2em 0.85em;
-  text-align: center;
-  background: #000;
-  border: var(--px, 2px) solid #2bbc7d;
-  box-shadow:
-    0 0 0 var(--px, 2px) #000,
-    0 0 0 calc(var(--px, 2px) * 2) #2bbc7d;
+  opacity: 0.85;
+  transition:
+    opacity 140ms ease-out,
+    filter 140ms ease-out;
 }
-.snake-overlay-title {
-  font-size: 1.35em;
-  line-height: 1.1;
-  margin: 0;
-  color: #f0f3ed;
-}
-.snake-overlay-sub {
-  font-size: 0.8em;
-  color: #a5b5ac;
-  margin: 0 0 0.3em;
-  max-width: 26ch;
-}
-.snake-overlay-badge {
+.blog-node-btn:hover .blog-node-title,
+.blog-node-btn:focus-visible .blog-node-title {
   color: #ffbc42;
 }
-.snake-footer {
-  flex-shrink: 0;
-  width: 100%;
-  height: 22px;
+.blog-node-btn:hover .blog-node-date,
+.blog-node-btn:focus-visible .blog-node-date {
+  opacity: 1;
+  filter: brightness(1.25);
+}
+.blog-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: clamp(12px, 2.2dvh, 24px) clamp(16px, 4vw, 40px);
+  font-family: var(--font-geist-pixel-square), monospace;
+  color: #ffffff;
+}
+.blog-modal-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: #000000;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    #ffffff 0px,
+    #ffffff 1px,
+    #000000 1px,
+    #000000 2px
+  );
+}
+.blog-modal-shell {
+  position: relative;
+  z-index: 1;
+  width: min(680px, 100%);
+  height: 100%;
+  min-height: 0;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
 }
-.snake-hint {
-  font-size: 0.72em;
-  line-height: 1.2;
-  color: #889b90;
-  margin: 0;
-  white-space: nowrap;
-}
-.snake-dpad {
-  display: none;
-  grid-template-columns: repeat(3, 52px);
-  grid-template-rows: repeat(2, 36px);
-  gap: 4px;
-}
-.snake-dpad button {
-  border: 2px solid #2a4738;
-  background: #000;
-  color: #2bbc7d;
-  font-size: 0.8em;
+.blog-modal-close {
+  align-self: flex-end;
+  margin-bottom: 6px;
+  padding: 2px 6px;
+  border: 0;
+  background: #000000;
+  font-family: var(--font-geist-pixel-line), monospace;
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  color: #ffbc42;
   cursor: pointer;
-  touch-action: manipulation;
 }
-.snake-dpad button:active {
-  background: #2bbc7d;
-  color: #000;
+.blog-modal-close:hover {
+  filter: brightness(1.2);
 }
-.snake-dpad-up {
-  grid-column: 2;
-  grid-row: 1;
+.blog-modal-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #000000;
 }
-.snake-dpad-left {
-  grid-column: 1;
-  grid-row: 2;
+.blog-modal-date {
+  display: block;
+  font-family: var(--font-geist-pixel-line), monospace;
+  font-size: clamp(16px, 1.8vw, 22px);
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
+  margin: 0 0 1.15em;
+  color: rgb(255 255 255 / 0.72);
 }
-.snake-dpad-down {
-  grid-column: 2;
-  grid-row: 2;
+.blog-modal-overlay :is(button, a):focus-visible {
+  outline: 2px dashed #ffbc42;
+  outline-offset: 3px;
 }
-.snake-dpad-right {
-  grid-column: 3;
-  grid-row: 2;
+.blog-modal-body {
+  padding: clamp(16px, 3vw, 28px);
+  overflow-y: auto;
+  font-size: clamp(17px, 1.5vw, 21px);
+  line-height: 1.5;
 }
-@media (pointer: coarse), (max-width: 650px) {
-  .snake-footer {
-    height: 76px;
-  }
-  .snake-hint {
-    display: none;
-  }
-  .snake-dpad {
-    display: grid;
-  }
+.blog-modal-body h2 {
+  font-family: var(--font-geist-pixel-line), monospace;
+  font-size: clamp(28px, 3.6vw, 45px);
+  font-weight: 400;
+  letter-spacing: -0.08em;
+  line-height: 0.96;
+  text-transform: lowercase;
+  margin: 0 0 0.2em;
+  color: #ffffff;
 }
-@media (max-width: 650px) {
-  .panel-content-game {
-    padding: 6px 8px 8px;
-  }
-  /* Two fixed rows on phones instead of wrapping by width. */
-  .snake-hud {
-    flex-direction: column;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    min-width: 0;
-    height: 62px;
-  }
+.blog-modal-body h3 {
+  font-size: 1.25em;
+  line-height: 1.2;
+  margin: 1.15em 0 0.45em;
+  color: #ffffff;
+}
+.blog-modal-body h4 {
+  font-size: 1.05em;
+  line-height: 1.25;
+  margin: 1em 0 0.4em;
+  color: #ffffff;
+}
+.blog-modal-body p {
+  margin: 0 0 0.9em;
+  color: #ffffff;
+}
+.blog-modal-body p:last-child {
+  margin-bottom: 0;
+}
+.blog-modal-body a {
+  color: #ffbc42;
+  text-underline-offset: 0.18em;
+}
+.blog-modal-body a:hover {
+  text-decoration: underline;
+}
+.blog-modal-body strong {
+  color: #ffffff;
+}
+.blog-modal-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.84em;
+  padding: 0.08em 0.35em;
+  background: #0d1913;
+  border: 1px solid #21372c;
+  color: #7ee3b5;
+}
+.blog-modal-body pre {
+  margin: 0.9em 0;
+  padding: 0.8em 1em;
+  overflow-x: auto;
+  background: #08100c;
+  border: 1px solid #21372c;
+}
+.blog-modal-body pre code {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.blog-modal-body ul,
+.blog-modal-body ol {
+  margin: 0 0 0.9em;
+  padding-left: 1.35em;
+  color: #ffffff;
+}
+.blog-modal-body ul {
+  list-style: square;
+}
+.blog-modal-body ol {
+  list-style: decimal;
+}
+.blog-modal-body li + li {
+  margin-top: 0.25em;
+}
+.blog-modal-body blockquote {
+  margin: 0.9em 0;
+  padding: 0.2em 0 0.2em 0.9em;
+  border-left: 2px solid #2bbc7d;
+  color: #a5b5ac;
+}
+.blog-modal-body hr {
+  margin: 1.2em 0;
+  border: 0;
+  border-top: 1px solid #21372c;
 }
 
 /* Custom circuit 404 page */
@@ -683,10 +731,61 @@ body {
     width: 100%;
   }
 }
+.motion-knob {
+  position: absolute;
+  left: clamp(12px, 2vw, 24px);
+  top: clamp(12px, 2vw, 24px);
+  z-index: 20;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: transparent;
+  color: #556b5f;
+  opacity: 0;
+  cursor: pointer;
+  transition:
+    color 140ms ease-out,
+    opacity 220ms ease-out;
+}
+.motion-knob.is-ready {
+  pointer-events: auto;
+  opacity: 0.65;
+}
+.motion-knob.is-off {
+  color: #46544c;
+}
+.motion-knob.is-ready:hover,
+.motion-knob.is-ready:focus-visible {
+  color: #ffbc42;
+  opacity: 1;
+}
+.motion-knob:focus-visible {
+  outline: 2px dashed #ffbc42;
+  outline-offset: 3px;
+}
+.motion-knob-dial {
+  transition: transform 150ms ease-out;
+}
+.motion-knob-label {
+  font-family: var(--font-pixelify-sans), monospace;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .destination *,
-  .snake-stat-pop {
+  .blog-destination *,
+  .motion-knob-dial {
     transition: none;
     animation: none;
   }
+}
+html[data-reduced-motion="true"] .destination *,
+html[data-reduced-motion="true"] .blog-destination *,
+html[data-reduced-motion="true"] .motion-knob-dial {
+  transition: none;
+  animation: none;
 }

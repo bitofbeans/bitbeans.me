@@ -5,57 +5,37 @@ import {
   motion,
   useMotionTemplate,
   useMotionValue,
-  useReducedMotion,
+  useReducedMotionConfig,
   useTransform,
   type MotionValue,
 } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-
-import type { SceneGeometry } from "./portfolio-scene";
+import {
+  artboardSize,
+  bendX,
+  centerY,
+  diagonalRun,
+  greenStrokeWidth,
+  leftX,
+  logoOffset,
+  logoScale,
+  logoSnapSpring,
+  lowerLeftY,
+  lowerStemY,
+  rightX,
+  spineX,
+  springHandoff,
+  stemX,
+  travelDuration,
+  travelEase,
+  upperLeftY,
+  upperStemY,
+  type SceneGeometry,
+} from "~/lib/scene-geometry";
+import { shouldSkipIntro } from "~/lib/sections";
 import { SegmentLabels, type Section } from "./segment-labels";
-import { shouldSkipIntro } from "./sections";
 
-const artboardSize = 1000;
-const logoScale = 0.962535;
-const logoOffset = { x: 98.962642, y: 23.705111 };
-const greenStrokeWidth = 64;
 const initialExtension = 12_000;
-const centerY = 476;
-const leftX = 186;
-const spineX = 478;
-const stemX = 554;
-const rightX = 652;
-const upperLeftY = centerY - 250;
-const lowerLeftY = centerY + 250;
-const upperStemY = centerY - 194;
-const lowerStemY = centerY + 194;
-const bendX = 350;
-const diagonalRun = spineX - bendX;
-
-export const travelDuration = 0.76;
-export const springHandoff = 0.075;
-export const travelEase = [0.52, 0, 0.26, 0.82] as const;
-
-export const logoSnapSpring = {
-  type: "spring",
-  stiffness: 360,
-  damping: 22,
-  mass: 0.7,
-} as const;
-
-export function logoBranchStrokeWidth(svgWidth: number) {
-  return (greenStrokeWidth * logoScale * svgWidth) / artboardSize;
-}
-
-export function restingWhiteTip(logoWidth: number) {
-  const unit = logoWidth / artboardSize;
-  const scale = unit * logoScale;
-  return {
-    scale,
-    x: unit * logoOffset.x + rightX * scale,
-    y: unit * logoOffset.y + centerY * scale,
-  };
-}
 
 type BranchTips = {
   upperLeftX: MotionValue<number>;
@@ -114,12 +94,14 @@ function LogoStrokes({
 
 export function AnimatedLogo({
   progress,
+  flightAxis = "right",
   geometry,
   onNavigate,
   onHoverSection,
   onLabelsReady,
 }: {
   progress: MotionValue<number>;
+  flightAxis?: "right" | "down";
   geometry: SceneGeometry | null;
   onNavigate: (section: Section, link: HTMLOrSVGElement) => void;
   onHoverSection?: (section: Section | null) => void;
@@ -138,13 +120,18 @@ export function AnimatedLogo({
   const lowerRight = useMotionValue(initialExtension);
   const lowerLeft = useMotionValue(initialExtension);
   const middleLeft = useMotionValue(initialExtension);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
 
-  // Extend the actual crossbar around the return loop, keeping its white tip on the path.
+  // Extend either the crossbar to the right (Work/About) or the bottom stem downward (Blog).
   const scale = geometry?.scale ?? 1;
-  const straightLength = (geometry?.straight ?? 0) / scale;
-  const dropLength = (geometry?.loopHeight ?? 0) / scale;
-  const foldLength = (geometry?.loopWidth ?? 0) / scale;
+  const straightLength =
+    flightAxis === "right" ? (geometry?.straight ?? 0) / scale : 0;
+  const dropLength =
+    flightAxis === "right" ? (geometry?.loopHeight ?? 0) / scale : 0;
+  const foldLength =
+    flightAxis === "right" ? (geometry?.loopWidth ?? 0) / scale : 0;
+  const blogDropLength =
+    flightAxis === "down" ? (geometry?.blogDrop ?? 0) / scale : 0;
   const traveled = useTransform(
     progress,
     (value) => value * (straightLength + dropLength + foldLength),
@@ -163,13 +150,16 @@ export function AnimatedLogo({
   const tipX = useTransform(() => elbow.get() + fold.get());
   const tipY = useTransform(() => centerY + drop.get());
   const crossbar = useMotionTemplate`M${spineX},${centerY} H${elbow} V${tipY} H${tipX}`;
+  const lowerRightY = useTransform(
+    () => lowerStemY + lowerRight.get() + progress.get() * blogDropLength,
+  );
   const tips = {
     upperLeftX: useTransform(upperLeft, (distance) => leftX - distance),
     upperRightY: useTransform(upperRight, (distance) => upperStemY - distance),
     farRightX: tipX,
     farRightY: tipY,
     crossbar,
-    lowerRightY: useTransform(lowerRight, (distance) => lowerStemY + distance),
+    lowerRightY,
     lowerLeftX: useTransform(lowerLeft, (distance) => leftX - distance),
     middleLeftX: useTransform(middleLeft, (distance) => leftX - distance),
   };
@@ -255,9 +245,16 @@ export function AnimatedLogo({
     reduceMotion,
   ]);
 
-  const flightWidth = geometry
-    ? artboardSize + Math.ceil((geometry.straight * logoScale) / geometry.scale)
-    : artboardSize;
+  const flightWidth =
+    geometry && flightAxis === "right"
+      ? artboardSize +
+        Math.ceil((geometry.straight * logoScale) / geometry.scale)
+      : artboardSize;
+  const flightHeight =
+    geometry && flightAxis === "down"
+      ? artboardSize +
+        Math.ceil((geometry.blogDrop * logoScale) / geometry.scale)
+      : artboardSize;
 
   return (
     <div
@@ -266,10 +263,13 @@ export function AnimatedLogo({
     >
       <svg
         role="navigation"
-        aria-label="BitBeans logo with Work, About, and Game"
-        viewBox={`0 0 ${flightWidth} ${artboardSize}`}
-        className="absolute top-0 left-0 h-full max-w-none overflow-visible"
-        style={{ width: `${(100 * flightWidth) / artboardSize}%` }}
+        aria-label="BitBeans logo with Work, About, and Blog"
+        viewBox={`0 0 ${flightWidth} ${flightHeight}`}
+        className="absolute top-0 left-0 max-h-none max-w-none overflow-visible"
+        style={{
+          width: `${(100 * flightWidth) / artboardSize}%`,
+          height: `${(100 * flightHeight) / artboardSize}%`,
+        }}
         strokeLinecap="round"
         strokeLinejoin="round"
       >

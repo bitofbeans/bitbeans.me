@@ -1,10 +1,4 @@
-type TraceMetrics = {
-  strokeWidth: number;
-  innerStrokeWidth: number;
-  crossingGap: number;
-  nodeOuterRadius: number;
-  nodeInnerRadius: number;
-};
+import type { TraceMetrics } from "~/lib/scene-geometry";
 
 export function StaticTrace({
   d,
@@ -13,7 +7,14 @@ export function StaticTrace({
   powered = false,
 }: {
   d: string;
-  metrics: TraceMetrics;
+  metrics: Pick<
+    TraceMetrics,
+    | "strokeWidth"
+    | "innerStrokeWidth"
+    | "crossingGap"
+    | "nodeOuterRadius"
+    | "nodeInnerRadius"
+  >;
   tip?: readonly [number, number];
   powered?: boolean;
 }) {

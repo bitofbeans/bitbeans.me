@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PortfolioScene } from "../portfolio-scene";
+import { PortfolioScene } from "~/components/portfolio-scene";
+import { getBlogPosts } from "~/lib/blog";
 import {
   sectionFromPath,
   sectionMeta,
@@ -8,7 +9,7 @@ import {
   sections,
   sectionTitle,
   siteTitle,
-} from "../sections";
+} from "~/lib/sections";
 
 export const dynamicParams = false;
 
@@ -54,5 +55,6 @@ export default async function SectionPage({
   const { section: slug } = await params;
   const section = sectionFromPath("/" + slug);
   if (!section) notFound();
-  return <PortfolioScene initialSection={section} />;
+  const blogPosts = await getBlogPosts();
+  return <PortfolioScene initialSection={section} blogPosts={blogPosts} />;
 }

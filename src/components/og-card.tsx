@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { siteDescription, siteTitle } from "./sections";
+import { siteDescription, siteTitle } from "~/lib/sections";
 
 export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
